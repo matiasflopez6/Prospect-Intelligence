@@ -1,0 +1,71 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/*
+ * Tokens de diseño. Paleta: fondo claro, blancos, grises, negro y UN acento (teal).
+ * Los colores semánticos (éxito/aviso/error) se usan solo para estados, nunca decorativos.
+ */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-canvas: #f6f7f8;
+  --color-surface: #ffffff;
+  --color-sunken: #f0f1f3;
+  --color-line: #e3e5e9;
+  --color-line-strong: #cfd3d9;
+
+  --color-ink: #0e1116;
+  --color-ink-2: #3a414c;
+  --color-muted: #5b6370;
+  --color-faint: #8b929d;
+
+  --color-accent: #0b6e6a;
+  --color-accent-hover: #095a57;
+  --color-accent-soft: #e5f1f0;
+  --color-accent-line: #b5d8d5;
+
+  --color-ok: #1a7f4b;
+  --color-ok-soft: #e6f3ec;
+  --color-warn: #a35c00;
+  --color-warn-soft: #fbf0dc;
+  --color-bad: #b42318;
+  --color-bad-soft: #fbe9e7;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.0625rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --shadow-pop: 0 4px 16px rgb(14 17 22 / 0.08), 0 0 0 1px rgb(14 17 22 / 0.06);
+}
+
+html {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-feature-settings: "cv11", "ss03";
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  min-height: 100dvh;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+::selection {
+  background: var(--color-accent-soft);
+}
