@@ -10,7 +10,7 @@ Aplicación de inteligencia comercial: **descubre** negocios reales por nicho y 
 | Estilos | Tailwind CSS 4 con tokens en `src/app/globals.css` | Diseño consistente, sin librería de componentes pesada |
 | Datos | SQLite (`better-sqlite3`) + Drizzle ORM | Persistente en `data/prospect.db`, sin servidor, migrable a Postgres |
 | Trabajos | Cola en tabla `jobs` + runner en proceso (`src/instrumentation.ts`) | Discovery/análisis son largos; persisten y se reanudan |
-| IA | `@anthropic-ai/sdk` vía `src/lib/llm/anthropic.ts` | Un único punto de configuración |
+| IA | `src/lib/llm` (Anthropic vía SDK, Google AI Studio/Gemini vía REST) | Un único punto de configuración; basta una clave (`ANTHROPIC_API_KEY` o `GEMINI_API_KEY`) |
 | Validación | zod | Env, salidas del LLM |
 
 Idioma de la UI y de los textos generados: **español**.
@@ -52,6 +52,7 @@ Cada sesión toca **solo** su carpeta. Lo compartido lo cambia el propietario in
 | `src/modules/analysis/{types,pipeline,…}.ts`, `src/modules/opportunities/*` (salvo `ui/`), `src/modules/scoring/*` (salvo `ui/`) | Analizador web, interpretación, motor de oportunidades, scoring, `pipeline.ts` | **Sesión 2 — Análisis + oportunidades + scoring** |
 | `src/modules/analysis/ui/*`, `opportunities/ui/*`, `scoring/ui/*` | Secciones de la ficha: Análisis, Evidencias, Oportunidades, Puntuación | Sesión 2 (la ficha solo las importa) |
 | `src/app/companies/[id]/page.tsx`, `src/modules/outreach/*`, `src/modules/reports/*`, `src/app/reports/**` | Composición de la ficha, mensajes, informe + PDF | **Sesión 3 — Ficha / mensajes / informe** |
+| `src/modules/profile/*`, `src/components/jobs/*`, `src/lib/llm/*` | Secciones propias de la ficha (general, redes/reseñas, servicios, próximas acciones), remitente, seguimiento de trabajos en la UI; cliente LLM multiproveedor | Sesión 3 |
 | `src/modules/crm/*`, `src/modules/dashboard/*`, `src/modules/companies/*` (service/types), `src/app/{page.tsx,companies/page.tsx,pipeline/**}` | CRM, dashboard, listado con filtros | **Sesión 4 — CRM / dashboard / filtros** |
 
 La ficha (`companies/[id]/page.tsx`) es un ensamblaje de secciones: cada módulo exporta un componente `ui/*` con `{ companyId }`. Los stubs actuales ("Pendiente de implementar") se sustituyen sin tocar la página.
@@ -72,6 +73,12 @@ Todos los tipos están en `src/modules/<modulo>/types.ts`.
 - **Jobs** (`jobs/service.ts`): `enqueueJob({ type, payload, searchId?, companyId? })`; `jobs/handlers.ts` enlaza tipo → función de servicio; progreso con `ctx.setProgress(pct, label)`; estado vía `GET /api/jobs/:id`.
 - **Actividad** (`activity/service.ts`): `logActivity({ type, message, companyId?, searchId? })` en cada hito (búsqueda creada/completada, empresa analizada, estado CRM, mensaje/informe generado).
 
+## Mensajes e informes (implementado)
+
+- **Mensajes** (`outreach/`): `service.ts` reúne hechos reales (empresa, oportunidad elegida —por defecto la de mayor prioridad— y sus evidencias), pide al LLM un mensaje por canal y **valida** (`validate.ts`: sin marcadores `[x]`, longitud por canal, solo `evidenceIds` existentes, al menos una evidencia). Sin clave de IA lanza `MissingCredentialError` (la UI muestra el bloqueo; no hay plantillas de relleno). Cada generación crea una versión nueva; el texto es editable (`updateMessage`) y el estado `draft/approved/sent` persiste. Remitente (firma) en `settings["profile.sender"]`.
+- **Informes** (`reports/`): `compose.ts` construye `ReportContent` solo con datos persistidos (sin IA, funciona sin clave), `html.ts` lo maqueta (única fuente de la vista previa y del PDF), `pdf.ts` lo renderiza con Chromium headless (`playwright-core`; `CHROMIUM_PATH` o `npx playwright-core install chromium`). Si el PDF falla el contenido queda guardado (`status=failed`) y se reintenta desde la UI. `GET /api/reports/:id` (HTML) y `?format=pdf` (PDF).
+- **IA** (`lib/llm`): `completeText/completeJson/getLlmInfo/isLlmConfigured`. Proveedor activo = el que tenga clave (Anthropic primero si hay ambas; `LLM_PROVIDER` lo fuerza).
+
 ## Análisis, oportunidades y scoring (implementado)
 
 ```
@@ -81,7 +88,7 @@ company.analyze → analysis/pipeline.ts
   facts.ts             Evidencias citables con clave estable ("website.no_whatsapp", "review.<id>", "listing.rating"…)
         │               + `absenceReliability`: una ausencia solo se afirma si la web se pudo leer
   interpreter.ts       IA (llm-interpreter.ts, verifica que cada hallazgo cite claves reales) → si no hay
-        │               ANTHROPIC_API_KEY o falla: rule-interpreter.ts (determinista). Motivo en analyses.notes
+        │               ANTHROPIC_API_KEY/GEMINI_API_KEY o falla: rule-interpreter.ts (determinista). Motivo en analyses.notes
   opportunities/       rules.ts (evidencia obligatoria, confianza según lo directa que sea la prueba)
   engine.ts            + refinado IA opcional (solo redacta; nunca cambia severidad/confianza/evidencia;
         │               las oportunidades extra de la IA se limitan a confianza 0,6 y exigen evidencia)
@@ -115,7 +122,7 @@ Evitar: tarjetas gigantes, degradados, iconos decorativos, gráficos sin informa
 
 ## Variables de entorno
 
-Ver `.env.example`. Estado visible en **Ajustes**. Credenciales actuales: `GOOGLE_PLACES_API_KEY` (discovery), `ANTHROPIC_API_KEY` (interpretación, mensajes, informes), `OSM_CONTACT` (opcional, se añade al User-Agent de OSM; OSM funciona sin él), `NOMINATIM_URL`/`OVERPASS_URL` (opcionales, instancias propias), `PAGESPEED_API_KEY` opcional.
+Ver `.env.example`. Estado visible en **Ajustes**. Credenciales actuales: `GOOGLE_PLACES_API_KEY` (discovery), `ANTHROPIC_API_KEY` o `GEMINI_API_KEY` (basta una; `LLM_PROVIDER` fuerza cuál si hay ambas) para interpretación, mensajes e informes; `CHROMIUM_PATH` (opcional) para el PDF, `OSM_CONTACT` (opcional, se añade al User-Agent de OSM; OSM funciona sin él), `NOMINATIM_URL`/`OVERPASS_URL` (opcionales, instancias propias), `PAGESPEED_API_KEY` opcional.
 
 ## Comandos
 

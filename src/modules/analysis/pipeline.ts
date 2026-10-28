@@ -114,7 +114,7 @@ export async function analyzeCompany(companyId: number, ctx: JobContext, deps: P
     const aiNotes = [interpretation.fallbackReason, detection.fallbackReason].filter((n): n is string => Boolean(n));
     // Si ambas etapas cayeron por el mismo motivo (sin clave de IA), se avisa una sola vez.
     const notes = aiNotes.every((n) => n.startsWith("Sin ANTHROPIC_API_KEY"))
-      ? aiNotes.length ? ["Sin ANTHROPIC_API_KEY: la interpretación y la redacción de oportunidades usan reglas deterministas basadas en evidencias (sin IA)."] : []
+      ? aiNotes.length ? ["Sin ANTHROPIC_API_KEY o GEMINI_API_KEY: la interpretación y la redacción de oportunidades usan reglas deterministas basadas en evidencias (sin IA)."] : []
       : [...new Set(aiNotes)];
     if (signals && !signals.reachable) notes.push(`No se pudo leer la web: ${signals.fetchError ?? "error desconocido"}`);
     if (signals?.likelyClientRendered) notes.push("La web carga su contenido con JavaScript: las ausencias detectadas (chat, reservas…) son menos fiables.");

@@ -6,7 +6,13 @@ import { RULES_MODEL_ID, interpretWithRules } from "./rule-interpreter";
 import type { AnalysisInput } from "./types";
 
 const completeJson = vi.fn();
-vi.mock("@/lib/llm/anthropic", () => ({ completeJson: (...a: unknown[]) => completeJson(...a), completeText: vi.fn() }));
+vi.mock("@/lib/llm", () => ({
+  completeJson: (...a: unknown[]) => completeJson(...a),
+  completeText: vi.fn(),
+  LLM_KEYS_HINT: "ANTHROPIC_API_KEY o GEMINI_API_KEY",
+  getLlmInfo: () => (process.env.ANTHROPIC_API_KEY ? { provider: "anthropic", model: "claude-sonnet-5-5" } : undefined),
+  isLlmConfigured: () => Boolean(process.env.ANTHROPIC_API_KEY),
+}));
 
 function input(over: Partial<AnalysisInput> = {}): AnalysisInput {
   return { company: makeCompany(), signals: basicSignals(), reviews: [], ...over };
