@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { Severity } from "@/domain";
-import { getEnv } from "@/lib/config/env";
-import { completeJson } from "@/lib/llm/anthropic";
+import { completeJson, getLlmInfo } from "@/lib/llm";
 import { buildFacts, type Facts } from "./facts";
 import { interpretWithRules } from "./rule-interpreter";
 import type { AnalysisInput, AnalysisInterpretation, AnalysisInterpreter, Finding } from "./types";
@@ -100,7 +99,7 @@ export function createLlmInterpreter(): AnalysisInterpreter {
   return {
     async interpret(input) {
       const facts = buildFacts(input);
-      const model = getEnv().ANTHROPIC_MODEL;
+      const model = getLlmInfo()?.model ?? "ia";
       const raw = await completeJson({
         system: INTERPRETER_SYSTEM,
         prompt: buildInterpreterPrompt(input, facts),

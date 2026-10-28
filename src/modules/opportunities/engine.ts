@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { IMPACT_LEVELS, SERVICE_KEYS, type ImpactLevel, type ServiceKey, type Severity } from "@/domain";
-import { getEnv } from "@/lib/config/env";
-import { completeJson } from "@/lib/llm/anthropic";
+import { completeJson, getLlmInfo, LLM_KEYS_HINT } from "@/lib/llm";
 import { errorMessage } from "@/lib/errors";
 import { buildFacts, type Facts } from "../analysis/facts";
 import { detectWithRules } from "./rules";
@@ -118,12 +117,13 @@ export function applyRefinement(drafts: OpportunityDraft[], raw: z.infer<typeof 
 export async function detectOpportunities(ctx: OpportunityContext): Promise<DetectionResult> {
   const facts = buildFacts({ company: ctx.company, signals: ctx.signals, reviews: ctx.reviews, socialProfiles: ctx.socialProfiles });
   const base = detectWithRules(ctx, facts);
-  if (!getEnv().ANTHROPIC_API_KEY) {
-    return { drafts: base, model: OPPORTUNITIES_RULES_MODEL, fallbackReason: "Sin ANTHROPIC_API_KEY: redacción por plantillas basadas en evidencias" };
+  const llm = getLlmInfo();
+  if (!llm) {
+    return { drafts: base, model: OPPORTUNITIES_RULES_MODEL, fallbackReason: `Sin ${LLM_KEYS_HINT}: redacción por plantillas basadas en evidencias` };
   }
   try {
     const raw = await completeJson({ system: OPPORTUNITY_SYSTEM, prompt: promptFor(ctx, facts, base), schema: refinedSchema, maxTokens: 4000 });
-    return { drafts: applyRefinement(base, raw, facts), model: getEnv().ANTHROPIC_MODEL };
+    return { drafts: applyRefinement(base, raw, facts), model: llm.model };
   } catch (e) {
     return { drafts: base, model: OPPORTUNITIES_RULES_MODEL, fallbackReason: `La IA no estuvo disponible (${errorMessage(e).slice(0, 200)}): oportunidades por reglas` };
   }

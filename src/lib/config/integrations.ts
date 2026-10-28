@@ -1,6 +1,7 @@
+import { getLlmInfo, PROVIDER_LABELS } from "../llm";
 import { getEnv, type Env } from "./env";
 
-export type IntegrationId = "google-places" | "openstreetmap" | "pagespeed" | "anthropic";
+export type IntegrationId = "google-places" | "openstreetmap" | "pagespeed" | "llm";
 
 export interface IntegrationStatus {
   id: IntegrationId;
@@ -15,12 +16,17 @@ export interface IntegrationStatus {
   missingEnv: string[];
   /** true si la integración es imprescindible para el flujo principal. */
   critical: boolean;
+  /** true = basta con UNA de las variables de `requiredEnv`. */
+  anyOf?: boolean;
+  /** Información de estado adicional (p. ej. proveedor de IA activo). */
+  detail?: string;
   docsUrl?: string;
 }
 
 /** Estado de cada integración externa, derivado de las variables de entorno. Nunca expone valores. */
 export function getIntegrationStatuses(): IntegrationStatus[] {
   const env = getEnv();
+  const llm = getLlmInfo();
   const defs: Omit<IntegrationStatus, "configured" | "missingEnv">[] = [
     {
       id: "google-places",
@@ -50,19 +56,22 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
       docsUrl: "https://developers.google.com/speed/docs/insights/v5/get-started",
     },
     {
-      id: "anthropic",
-      label: "Anthropic (Claude)",
-      purpose: "Interpretación del análisis, oportunidades, mensajes personalizados e informes.",
-      requiredEnv: ["ANTHROPIC_API_KEY"],
-      optionalEnv: ["ANTHROPIC_MODEL"],
+      id: "llm",
+      label: "IA: Claude o Gemini",
+      purpose: "Interpretación del análisis, oportunidades, mensajes personalizados e informes. Basta una de las dos claves.",
+      requiredEnv: ["ANTHROPIC_API_KEY", "GEMINI_API_KEY"],
+      optionalEnv: ["LLM_PROVIDER", "ANTHROPIC_MODEL", "GEMINI_MODEL"],
+      anyOf: true,
       critical: true,
-      docsUrl: "https://console.anthropic.com/",
+      detail: llm ? `Activo: ${PROVIDER_LABELS[llm.provider]} · ${llm.model}` : undefined,
+      docsUrl: "https://aistudio.google.com/apikey",
     },
   ];
 
   return defs.map((d) => {
-    const missingEnv = d.requiredEnv.filter((k) => !env[k]).map(String);
-    return { ...d, configured: missingEnv.length === 0, missingEnv };
+    const missing = d.requiredEnv.filter((k) => !env[k]).map(String);
+    const configured = d.anyOf ? missing.length < d.requiredEnv.length : missing.length === 0;
+    return { ...d, configured, missingEnv: configured ? [] : d.anyOf ? [d.requiredEnv.join(" o ")] : missing };
   });
 }
 
