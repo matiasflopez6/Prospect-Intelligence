@@ -158,3 +158,14 @@ describe("analyzeWebsite", () => {
     expect(s).toMatchObject({ reachable: false, fetchErrorKind: "invalid-url" });
   });
 });
+
+describe("robots.txt", () => {
+  it("interpreta Disallow del grupo *", async () => {
+    const { disallowsPath } = await import("./website-analyzer");
+    expect(disallowsPath(["/"], "/")).toBe(true);
+    expect(disallowsPath(["/admin"], "/admin/x")).toBe(true);
+    expect(disallowsPath(["/admin"], "/contacto")).toBe(false);
+    expect(disallowsPath(["/*.pdf"], "/a")).toBe(false);
+    expect(disallowsPath([], "/")).toBe(false);
+  });
+});

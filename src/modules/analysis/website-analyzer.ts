@@ -28,6 +28,12 @@ export async function analyzeWebsite(url: string, opts: WebsiteAnalyzerOptions =
     return { url, fetchedAt, reachable: false, fetchError: "La dirección web no es válida", fetchErrorKind: "invalid-url" };
   }
 
+  // Se respeta robots.txt: si el sitio pide que no se rastree, no se analiza (se declara, no se inventa).
+  const disallowed = await robotsDisallowedPaths(normalized, opts);
+  if (disallowsPath(disallowed, normalized.pathname)) {
+    return { url: normalized.toString(), fetchedAt, reachable: false, fetchError: "El sitio no permite el acceso automático (robots.txt)", fetchErrorKind: "blocked" };
+  }
+
   // Si la URL guardada es https y falla por TLS/conexión, se reintenta por http para distinguir "sin HTTPS" de "caída".
   let home = await safeFetchHtml(normalized.toString(), opts);
   if (!home.ok && normalized.protocol === "https:" && (home.kind === "tls" || home.kind === "refused")) {
@@ -59,6 +65,7 @@ export async function analyzeWebsite(url: string, opts: WebsiteAnalyzerOptions =
     if (link) queue.push(link.url);
   }
   for (const next of queue.slice(0, MAX_EXTRA_PAGES)) {
+    if (disallowsPath(disallowed, new URL(next).pathname)) continue;
     const res = await safeFetchHtml(next, opts);
     if (res.ok) {
       visited.add(next.replace(/\/$/, ""));
@@ -72,6 +79,31 @@ export async function analyzeWebsite(url: string, opts: WebsiteAnalyzerOptions =
     signals.performance = await fetchPageSpeed(home.finalUrl, opts.pageSpeedFetch ?? fetch);
   }
   return signals;
+}
+
+/** Reglas Disallow del grupo «*» de robots.txt. Si no se puede leer, se asume permitido. */
+export async function robotsDisallowedPaths(site: URL, opts: SafeFetchOptions): Promise<string[]> {
+  const res = await safeFetchHtml(new URL("/robots.txt", site).toString(), { ...opts, timeoutMs: 5000, maxBytes: 100_000 });
+  if (!res.ok) return [];
+  const rules: string[] = [];
+  let applies = false;
+  for (const raw of res.html.split(/\r?\n/)) {
+    const line = raw.replace(/#.*/, "").trim();
+    const m = line.match(/^([a-z-]+)\s*:\s*(.*)$/i);
+    if (!m) continue;
+    const field = m[1]!.toLowerCase();
+    if (field === "user-agent") applies = m[2]!.trim() === "*";
+    else if (applies && field === "disallow" && m[2]!.trim()) rules.push(m[2]!.trim());
+  }
+  return rules;
+}
+
+export function disallowsPath(rules: string[], path: string): boolean {
+  return rules.some((r) => {
+    if (r === "/" || r === "/*") return true;
+    if (r.includes("*")) return false; // patrones con comodín: se ignoran (se asume permitido)
+    return path.startsWith(r.replace(/\$$/, ""));
+  });
 }
 
 function uniq<T>(items: T[], key: (item: T) => string = (i) => String(i)): T[] {
