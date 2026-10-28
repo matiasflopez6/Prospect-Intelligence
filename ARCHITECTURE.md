@@ -60,7 +60,7 @@ La ficha (`companies/[id]/page.tsx`) es un ensamblaje de secciones: cada módulo
 
 Todos los tipos están en `src/modules/<modulo>/types.ts`.
 
-- **Discovery** (`discovery/types.ts`): `DiscoveryProvider { id, label, requiredEnv, availability(), search(query, ctx) → DiscoveredBusiness[], enrich?() }`. Se registra en `registry.ts`. `service.ts`: `createSearch()` (hecho), `runDiscovery(searchId, ctx)` (TODO). Mapeo a tablas: ver `DiscoveredBusiness` → `companies` + `company_sources` (procedencia por campo) + `social_profiles` + `reviews`. Deduplicación: `googlePlaceId`, `osmId`, `websiteDomain`, nombre normalizado + dirección.
+- **Discovery** (`discovery/types.ts`): `DiscoveryProvider { id, label, requiredEnv, availability(), search(query, ctx) → DiscoveredBusiness[], enrich?() }`. Se registra en `registry.ts`. `service.ts`: `createSearch()` (hecho), `runDiscovery(searchId, ctx)` (hecho; ver `src/modules/discovery/README.md`). Mapeo a tablas: ver `DiscoveredBusiness` → `companies` + `company_sources` (procedencia por campo) + `social_profiles` + `reviews`. Deduplicación: `googlePlaceId`, `osmId`, `websiteDomain`, nombre normalizado + dirección.
 - **Análisis** (`analysis/types.ts`): `WebsiteAnalyzer.analyze() → WebsiteSignals` (hechos objetivos); `AnalysisInterpreter.interpret() → { summary, quality, findings[] }` (interpretación redactada con evidencias); `pipeline.ts: analyzeCompany(companyId, ctx)` orquesta analizador → intérprete → oportunidades → scoring y actualiza `companies` / `crm_entries`.
 - **Oportunidades** (`opportunities/types.ts`): `OpportunityEngine.detect() → OpportunityDraft[]` (problema, evidencia, consecuencia, solución, `serviceKey`, impacto, severidad 1–5, confianza 0–1).
 - **Scoring** (`scoring/types.ts`): `ScoringEngine.score()` función pura → `ScoreResult { total 0–100, tier, confidence, components[] }`; `methodVersion` versiona la heurística.
@@ -94,7 +94,7 @@ Evitar: tarjetas gigantes, degradados, iconos decorativos, gráficos sin informa
 
 ## Variables de entorno
 
-Ver `.env.example`. Estado visible en **Ajustes**. Credenciales actuales: `GOOGLE_PLACES_API_KEY` (discovery), `ANTHROPIC_API_KEY` (interpretación, mensajes, informes), `OSM_CONTACT` (User-Agent para OSM), `PAGESPEED_API_KEY` opcional.
+Ver `.env.example`. Estado visible en **Ajustes**. Credenciales actuales: `GOOGLE_PLACES_API_KEY` (discovery), `ANTHROPIC_API_KEY` (interpretación, mensajes, informes), `OSM_CONTACT` (opcional, se añade al User-Agent de OSM; OSM funciona sin él), `NOMINATIM_URL`/`OVERPASS_URL` (opcionales, instancias propias), `PAGESPEED_API_KEY` opcional.
 
 ## Comandos
 

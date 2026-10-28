@@ -1,14 +1,17 @@
-import { EmptyState, PageHeader, Panel } from "@/components/ui";
+import { PageHeader, Panel } from "@/components/ui";
+import { discoveryProviders } from "@/modules/discovery/registry";
+import { NewSearchForm } from "@/modules/discovery/ui/new-search-form";
 
 export const metadata = { title: "Nueva búsqueda" };
+export const dynamic = "force-dynamic";
 
-/** Propietario: sesión discovery. Formulario: nicho, ubicación, nº de empresas → createSearch(). */
 export default function NewSearchPage() {
+  const providers = discoveryProviders.map((p) => ({ id: p.id, label: p.label, description: p.description, ...p.availability() }));
   return (
     <>
-      <PageHeader title="Nueva búsqueda" />
+      <PageHeader title="Nueva búsqueda" description="Introduce un nicho y una ubicación: se buscan negocios reales y se guardan con la fuente de cada dato." />
       <Panel>
-        <EmptyState title="Formulario pendiente" description="Lo implementa la sesión de descubrimiento (modules/discovery)." />
+        <NewSearchForm providers={providers} />
       </Panel>
     </>
   );

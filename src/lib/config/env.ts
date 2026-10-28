@@ -11,6 +11,7 @@ const schema = z.object({
   GOOGLE_PLACES_API_KEY: optionalString,
   OSM_CONTACT: optionalString,
   OVERPASS_URL: z.string().default("https://overpass-api.de/api/interpreter"),
+  NOMINATIM_URL: z.string().default("https://nominatim.openstreetmap.org/search"),
   PAGESPEED_API_KEY: optionalString,
   ANTHROPIC_API_KEY: optionalString,
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-5-5"),
