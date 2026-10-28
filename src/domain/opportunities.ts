@@ -12,6 +12,8 @@ export const OPPORTUNITY_TYPES = {
   no_booking: { label: "Sin sistema de reserva", service: "online_booking" },
   poor_call_handling: { label: "Gestión de llamadas mejorable", service: "call_handling" },
   unanswered_reviews: { label: "Reseñas sin responder", service: "review_management" },
+  low_reputation: { label: "Reputación mejorable", service: "review_management" },
+  few_reviews: { label: "Pocas reseñas públicas", service: "review_management" },
   weak_forms: { label: "Formularios poco optimizados", service: "lead_qualification" },
   weak_cta: { label: "Llamadas a la acción débiles", service: "web_conversion" },
   no_chat: { label: "Sin chat ni asistente", service: "ai_chat_assistant" },

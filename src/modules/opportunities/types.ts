@@ -26,6 +26,7 @@ export interface OpportunityContext {
   signals?: WebsiteSignals;
   interpretation: AnalysisInterpretation;
   reviews: (typeof import("@/lib/db/schema").reviews.$inferSelect)[];
+  socialProfiles?: { platform: string; url: string }[];
 }
 
 export interface OpportunityEngine {

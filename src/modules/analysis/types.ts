@@ -13,6 +13,8 @@ export interface WebsiteSignals {
   reachable: boolean;
   httpStatus?: number;
   fetchError?: string;
+  /** Clasificación del fallo de acceso (para distinguir "web caída" de "no pudimos llegar"). */
+  fetchErrorKind?: FetchErrorKind;
   https?: boolean;
   responseTimeMs?: number;
   htmlBytes?: number;
@@ -23,6 +25,13 @@ export interface WebsiteSignals {
   lang?: string;
   textExcerpt?: string;
   wordCount?: number;
+  /** Año más reciente en un aviso © del pie de página (pista de abandono si es antiguo). */
+  copyrightYear?: number;
+  /**
+   * La página parece construida en el navegador (poco HTML visible, mucho script): las ausencias
+   * detectadas en el HTML inicial son menos fiables.
+   */
+  likelyClientRendered?: boolean;
 
   mobile?: { viewportMeta: boolean; responsiveHints: string[] };
   performance?: {
@@ -38,10 +47,28 @@ export interface WebsiteSignals {
     phones: string[];
     emails: string[];
     whatsappLinks: string[];
+    /** Widget flotante de WhatsApp (plugin) sin enlace directo en el HTML. */
+    whatsappWidget?: boolean;
     hasClickToCall: boolean;
     hasContactPage: boolean;
   };
-  forms?: { count: number; items: { action?: string; fields: string[]; hasRequiredPhone?: boolean }[] };
+  forms?: {
+    count: number;
+    items: {
+      action?: string;
+      fields: string[];
+      /** Campos visibles que pide el usuario (sin ocultos ni botones). */
+      fieldCount?: number;
+      /** Tiene selectores/opciones que permiten cualificar la consulta (servicio, motivo…). */
+      hasChoiceField?: boolean;
+      hasRequiredPhone?: boolean;
+      /** Solo pide un email: suscripción, no consulta. */
+      isNewsletter?: boolean;
+      /** Formulario incrustado de un tercero (Typeform, HubSpot, Google Forms…). */
+      vendor?: string;
+      pageUrl?: string;
+    }[];
+  };
   booking?: { detected: boolean; vendor?: string; urls: string[] };
   chat?: { detected: boolean; vendor?: string };
   ctas?: { text: string; href?: string; kind: "call" | "whatsapp" | "booking" | "form" | "other" }[];
@@ -49,6 +76,8 @@ export interface WebsiteSignals {
   tech?: { cms?: string; analytics: string[]; pixels: string[]; crm?: string[] };
   pagesVisited?: string[];
 }
+
+export type FetchErrorKind = "invalid-url" | "blocked" | "dns" | "timeout" | "tls" | "refused" | "http" | "not-html" | "other";
 
 export interface WebsiteAnalyzer {
   /** Descarga y examina la web. No debe lanzar por errores de red: devuelve reachable=false con fetchError. */
@@ -83,12 +112,16 @@ export interface AnalysisInterpretation {
   quality: Record<string, number>;
   findings: Finding[];
   model?: string;
+  /** Si se pidió IA y no se pudo usar (sin clave, error…), el motivo: se muestra al usuario. */
+  fallbackReason?: string;
 }
 
 export interface AnalysisInput {
   company: typeof import("@/lib/db/schema").companies.$inferSelect;
   signals?: WebsiteSignals;
   reviews: (typeof import("@/lib/db/schema").reviews.$inferSelect)[];
+  /** Perfiles sociales ya conocidos (descubrimiento) además de los enlazados en la web. */
+  socialProfiles?: { platform: string; url: string }[];
 }
 
 export interface AnalysisInterpreter {
