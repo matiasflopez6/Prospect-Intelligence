@@ -23,6 +23,8 @@ export const analyses = sqliteTable(
     findings: text("findings", { mode: "json" }).$type<unknown[]>(),
     /** Qué modelo/versión produjo la interpretación. */
     model: text("model"),
+    /** Avisos del análisis visibles al usuario (p. ej. "sin ANTHROPIC_API_KEY: interpretación por reglas"). */
+    notes: text("notes", { mode: "json" }).$type<string[]>(),
     createdAt: createdAt(),
     finishedAt: ts("finished_at"),
   },

@@ -24,10 +24,24 @@ export interface ScoreResult {
   methodVersion: string;
 }
 
+/** Datos observados que el scoring necesita además de las oportunidades (todo opcional: ausencia = desconocido). */
+export interface ScoringContext {
+  /** Subpuntuaciones de calidad web 0–100 (claridad, cta, conversion, movil, confianza…). */
+  quality?: Record<string, number>;
+  hasWebsite?: boolean;
+  phone?: boolean;
+  email?: boolean;
+  whatsapp?: boolean;
+  /** Reseñas de la muestra publicadas en los últimos 12 meses y tamaño de la muestra. */
+  recentReviews?: number;
+  sampleSize?: number;
+}
+
 export interface ScoringInput {
   company: typeof import("@/lib/db/schema").companies.$inferSelect;
   opportunities: OpportunityDraft[];
   websiteReachable: boolean;
+  context?: ScoringContext;
 }
 
 export interface ScoringEngine {

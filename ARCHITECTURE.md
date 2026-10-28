@@ -72,6 +72,27 @@ Todos los tipos están en `src/modules/<modulo>/types.ts`.
 - **Jobs** (`jobs/service.ts`): `enqueueJob({ type, payload, searchId?, companyId? })`; `jobs/handlers.ts` enlaza tipo → función de servicio; progreso con `ctx.setProgress(pct, label)`; estado vía `GET /api/jobs/:id`.
 - **Actividad** (`activity/service.ts`): `logActivity({ type, message, companyId?, searchId? })` en cada hito (búsqueda creada/completada, empresa analizada, estado CRM, mensaje/informe generado).
 
+## Análisis, oportunidades y scoring (implementado)
+
+```
+company.analyze → analysis/pipeline.ts
+  website-analyzer.ts  (safe-fetch.ts: solo http(s), anti-SSRF, límites, robots.txt; html-signals.ts: cheerio)
+        │ WebsiteSignals (hechos objetivos; PageSpeed opcional)
+  facts.ts             Evidencias citables con clave estable ("website.no_whatsapp", "review.<id>", "listing.rating"…)
+        │               + `absenceReliability`: una ausencia solo se afirma si la web se pudo leer
+  interpreter.ts       IA (llm-interpreter.ts, verifica que cada hallazgo cite claves reales) → si no hay
+        │               ANTHROPIC_API_KEY o falla: rule-interpreter.ts (determinista). Motivo en analyses.notes
+  opportunities/       rules.ts (evidencia obligatoria, confianza según lo directa que sea la prueba)
+  engine.ts            + refinado IA opcional (solo redacta; nunca cambia severidad/confianza/evidencia;
+        │               las oportunidades extra de la IA se limitan a confianza 0,6 y exigen evidencia)
+  scoring/engine.ts    8 factores ponderados (suman 1) con valor, puntos y explicación → tabla `scores`
+```
+
+- Reanalizar conserva historial (`analyses`, `scores`), reutiliza filas de `evidence` por (empresa, clave) y sustituye las oportunidades *abiertas*; las *descartadas* no se reabren.
+- El pipeline solo **rellena huecos** de `companies` (email/teléfono/WhatsApp) y avanza `crm_entries` de `new` a `analyzed` (nunca retrocede).
+- Lectura para la UI: `analysis/service.ts`, `opportunities/service.ts`, `scoring/service.ts`. Acción de servidor `analysis/actions.ts` (botón «Analizar / Volver a analizar»).
+- Tipos de oportunidad nuevos en `domain/opportunities.ts`: `low_reputation`, `few_reviews`. La IA puede emitir tipos adicionales (texto libre).
+
 ## Modelo de datos (`src/lib/db/schema`)
 
 - `discovery.ts`: `searches`, `companies` (incluye resumen desnormalizado: `score`, `scoreTier`, `opportunityCount`, `topServiceKey`, `analysisStatus`), `search_companies`, `company_sources`, `social_profiles`, `reviews`.
