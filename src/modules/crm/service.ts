@@ -120,6 +120,20 @@ export function updateCrm(companyId: number, update: CrmUpdate, db: Db = getDb()
   return saved;
 }
 
+/**
+ * Se ha enviado un mensaje a la empresa: registra el último contacto y, si la empresa estaba
+ * antes del primer contacto (Nueva, Analizada, Prioritaria), la pasa a «Contactada».
+ * Nunca retrocede un estado más avanzado.
+ */
+export function markContacted(companyId: number, db: Db = getDb()): CrmEntry {
+  const entry = ensureCrmEntry(companyId, db);
+  if (entry.status === "new" || entry.status === "analyzed" || entry.status === "priority") {
+    return updateCrm(companyId, { status: "contacted" }, db);
+  }
+  if (entry.status === "won" || entry.status === "lost") return entry;
+  return db.update(tables.crmEntries).set({ lastContactedAt: new Date() }).where(eq(tables.crmEntries.companyId, companyId)).returning().get();
+}
+
 export function addNote(companyId: number, body: string, authorId?: number, db: Db = getDb()): CrmNote {
   const text = body.trim();
   if (!text) throw new Error("La nota no puede estar vacía");

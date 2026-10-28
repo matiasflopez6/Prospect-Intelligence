@@ -68,6 +68,7 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
     {
       key: "name",
       header: "Empresa",
+      className: "min-w-44",
       ...sortProps("name"),
       cell: (r) => (
         <span className="flex flex-col leading-tight">
@@ -83,7 +84,7 @@ export default async function CompaniesPage({ searchParams }: { searchParams: Pr
       cell: (r) =>
         r.score != null ? <ScoreBadge score={r.score} tier={r.scoreTier} /> : <span className="text-xs text-muted">{r.analysisStatus === "running" ? "Analizando…" : r.analysisStatus === "failed" ? "Error de análisis" : "Sin analizar"}</span>,
     },
-    { key: "opps", header: "Oport.", align: "right", ...sortProps("opportunities"), cell: (r) => <span className="tnum">{r.score != null ? r.opportunityCount : "—"}</span> },
+    { key: "opps", header: "Oport.", align: "right", hideBelow: "sm", ...sortProps("opportunities"), cell: (r) => <span className="tnum">{r.score != null ? r.opportunityCount : "—"}</span> },
     { key: "service", header: "Servicio principal", hideBelow: "lg", cell: (r) => (r.topServiceKey ? <span className="text-ink-2">{serviceLabel(r.topServiceKey)}</span> : <span className="text-faint">—</span>) },
     {
       key: "rating",

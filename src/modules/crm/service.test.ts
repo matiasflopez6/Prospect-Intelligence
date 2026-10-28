@@ -80,6 +80,22 @@ describe("updateCrm / notas", () => {
   });
 });
 
+describe("markContacted", () => {
+  it("avanza desde estados previos al contacto y no retrocede ni reabre", () => {
+    const a = seed("MC Priority");
+    crm.updateCrm(a.id, { status: "priority" });
+    expect(crm.markContacted(a.id).status).toBe("contacted");
+    const b = seed("MC Meeting");
+    crm.updateCrm(b.id, { status: "meeting" });
+    const kept = crm.markContacted(b.id);
+    expect(kept.status).toBe("meeting");
+    expect(kept.lastContactedAt).toBeInstanceOf(Date);
+    const c = seed("MC Lost");
+    crm.updateCrm(c.id, { status: "lost" });
+    expect(crm.markContacted(c.id).status).toBe("lost");
+  });
+});
+
 describe("pipeline y seguimientos", () => {
   it("agrupa por estado con totales reales y ordena por puntuación", () => {
     const hi = seed("Pipe Alta", { score: 90, scoreTier: "high", niche: "pipe-test" });

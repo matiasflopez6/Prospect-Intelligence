@@ -98,4 +98,17 @@ describe("updateMessage", () => {
     expect(log).toHaveBeenCalledWith(expect.objectContaining({ type: "message.status_changed" }));
     expect(() => updateMessage(id!, { body: "  " }, { db, log })).toThrow(/vacío/);
   });
+
+  it("al marcar un mensaje como enviado, el CRM pasa a «Contactada» sin retroceder estados avanzados", async () => {
+    const { company, evidence } = seedAnalyzedCompany(db);
+    const [id, id2] = await generateMessages({ companyId: company.id, channels: ["whatsapp", "email"] }, { db, complete: fakeComplete({ messages: [reply([evidence[0]!.id]).messages[2], reply([evidence[0]!.id]).messages[0]] }), log: vi.fn() });
+    const crm = () => db.select().from(tables.crmEntries).where(eq(tables.crmEntries.companyId, company.id)).get();
+    db.insert(tables.crmEntries).values({ companyId: company.id, status: "analyzed" }).onConflictDoNothing().run();
+    updateMessage(id!, { status: "sent" }, { db, log: vi.fn() });
+    expect(crm()).toMatchObject({ status: "contacted" });
+    expect(crm()?.lastContactedAt).toBeInstanceOf(Date);
+    db.update(tables.crmEntries).set({ status: "meeting" }).where(eq(tables.crmEntries.companyId, company.id)).run();
+    updateMessage(id2!, { status: "sent" }, { db, log: vi.fn() });
+    expect(crm()?.status).toBe("meeting");
+  });
 });

@@ -10,6 +10,8 @@ import { addNote, createMember, updateCrm } from "./service";
 export interface CrmFormState {
   ok?: boolean;
   error?: string;
+  /** Responsable asignado tras guardar (puede haberse creado en el formulario). */
+  ownerId?: number | null;
 }
 
 const companyIdSchema = z.coerce.number().int().positive();
@@ -28,18 +30,18 @@ const saveSchema = z.object({
   newOwner: z.string().trim().max(80),
   nextAction: z.string().trim().max(500),
   followUpAt: z.string(),
-  lostReason: z.string().trim().max(500),
+  lostReason: z.string().trim().max(500).default(""),
 });
 
 /** Guarda estado, responsable, próxima acción y fecha de seguimiento de una empresa. */
-export async function saveCrmAction(_prev: CrmFormState, form: FormData): Promise<CrmFormState> {
+export async function saveCrmAction(form: FormData): Promise<CrmFormState> {
   const parsed = saveSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: "Datos no válidos" };
   const d = parsed.data;
   const followUpAt = parseDateInput(d.followUpAt);
   if (d.followUpAt && !followUpAt) return { error: "Fecha de seguimiento no válida" };
+  let ownerId: number | null = d.ownerId ? Number(d.ownerId) : null;
   try {
-    let ownerId: number | null = d.ownerId ? Number(d.ownerId) : null;
     if (d.newOwner) ownerId = createMember(d.newOwner).id;
     updateCrm(d.companyId, {
       status: d.status,
@@ -52,10 +54,10 @@ export async function saveCrmAction(_prev: CrmFormState, form: FormData): Promis
     return { error: errorMessage(e) };
   }
   refresh(d.companyId);
-  return { ok: true };
+  return { ok: true, ownerId };
 }
 
-export async function addNoteAction(_prev: CrmFormState, form: FormData): Promise<CrmFormState> {
+export async function addNoteAction(form: FormData): Promise<CrmFormState> {
   const companyId = companyIdSchema.safeParse(form.get("companyId"));
   const body = String(form.get("body") ?? "");
   const authorRaw = form.get("authorId");
