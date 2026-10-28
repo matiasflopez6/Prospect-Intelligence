@@ -18,15 +18,12 @@ describe("base de datos + runner de trabajos", () => {
     expect(row.status).toBe("queued");
   });
 
-  it("un trabajo cuyo módulo no está implementado falla con mensaje explícito (no inventa datos)", async () => {
-    const { createSearch, getSearch } = await import("../discovery/service");
-    const { getJob, listJobs } = await import("./service");
-    const searchId = createSearch({ niche: "x", location: "y", targetCount: 5 });
-    expect(getSearch(searchId)).toBeDefined();
-    const jobId = listJobs({ searchId })[0]!.id;
+  it("un trabajo que lanza un error queda 'failed' con el mensaje (no se pierde ni se inventa resultado)", async () => {
+    const { enqueueJob, getJob } = await import("./service");
+    const jobId = enqueueJob({ type: "discovery.run", payload: { searchId: 999_999 } });
     for (let i = 0; i < 50 && getJob(jobId)?.status !== "failed"; i++) await new Promise((r) => setTimeout(r, 100));
     const job = getJob(jobId)!;
     expect(job.status).toBe("failed");
-    expect(job.error).toMatch(/No implementado/);
+    expect(job.error).toMatch(/no existe/);
   });
 });

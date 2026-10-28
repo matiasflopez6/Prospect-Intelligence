@@ -15,7 +15,6 @@ import type { DiscoveredBusiness, DiscoveryProvider, DiscoveryQuery, ProviderCon
  */
 
 const PROVIDER = "openstreetmap";
-const DEFAULT_NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const FALLBACK_OVERPASS = ["https://overpass.kumi.systems/api/interpreter"];
 /** Techo de elementos que se piden a Overpass (la zona puede tener muchos más). */
 const MAX_ELEMENTS = 1500;
@@ -80,7 +79,7 @@ export function createOpenStreetMapProvider(deps: OsmDeps = {}): DiscoveryProvid
   async function geocode(location: string, ctx: ProviderContext): Promise<GeocodedPlace> {
     const cached = geocodeCache.get(location);
     if (cached) return cached;
-    const url = new URL(deps.nominatimUrl ?? DEFAULT_NOMINATIM);
+    const url = new URL(deps.nominatimUrl ?? getEnv().NOMINATIM_URL);
     url.searchParams.set("q", location);
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("limit", "5");
