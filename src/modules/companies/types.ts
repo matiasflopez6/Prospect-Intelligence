@@ -42,6 +42,8 @@ export interface CompanyListRow {
   topServiceKey: string | null;
   crmStatus: CrmStatus;
   ownerName: string | null;
+  nextAction: string | null;
+  followUpAt: Date | null;
   analysisStatus: "pending" | "running" | "done" | "failed";
 }
 

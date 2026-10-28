@@ -5,6 +5,7 @@ import { opportunityPriority } from "@/domain/priority";
 import { getDb, tables, type Db } from "@/lib/db";
 import { completeJson, getLlmInfo, llmMissingError, LLM_KEY_VARS } from "@/lib/llm";
 import { logActivity } from "../activity/service";
+import { markContacted } from "../crm/service";
 import type { JobContext } from "../jobs/handlers";
 import { getSenderProfile } from "../profile/sender";
 import { buildOutreachPrompt, OUTREACH_SYSTEM, type OutreachFacts } from "./prompt";
@@ -223,6 +224,8 @@ export function updateMessage(id: number, edit: MessageEdit, deps: Pick<Outreach
       message: `Mensaje de ${current.channel} marcado como ${edit.status}`,
       companyId: current.companyId,
     });
+    // Enviar un mensaje es contactar a la empresa: el CRM avanza a «Contactada».
+    if (edit.status === "sent") markContacted(current.companyId, db);
   }
   return next;
 }
