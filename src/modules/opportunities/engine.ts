@@ -17,34 +17,36 @@ export interface DetectionResult {
   fallbackReason?: string;
 }
 
-const refinedSchema = z.object({
-  refined: z
-    .array(
-      z.object({
-        ref: z.string(),
-        problem: z.string().min(10).max(500),
-        consequence: z.string().min(10).max(600),
-        proposedSolution: z.string().min(10).max(600),
-        impactNote: z.string().max(400).optional(),
-      }),
-    )
-    .default([]),
-  additional: z
-    .array(
-      z.object({
-        type: z.string().min(2).max(40),
-        title: z.string().min(5).max(120),
-        problem: z.string().min(10).max(500),
-        consequence: z.string().min(10).max(600),
-        proposedSolution: z.string().min(10).max(600),
-        serviceKey: z.string(),
-        impact: z.enum(IMPACT_LEVELS),
-        severity: z.number().int().min(1).max(5),
-        confidence: z.number().min(0).max(1),
-        evidenceKeys: z.array(z.string()).min(1).max(8),
-      }),
-    )
-    .default([]),
+/** Un elemento mal formado se descarta (null) en vez de invalidar toda la respuesta del modelo. */
+const lenient = <T extends z.ZodType>(item: T) => item.nullable().catch(null);
+
+/** Texto del modelo: si se pasa de largo se recorta en vez de descartar el elemento. */
+const text = (min: number, max: number) => z.string().min(min).transform((v) => (v.length > max ? `${v.slice(0, max - 1).trimEnd()}…` : v));
+
+const refinedItem = z.object({
+  ref: z.string(),
+  problem: text(10, 500),
+  consequence: text(10, 600),
+  proposedSolution: text(10, 600),
+  impactNote: text(1, 400).optional(),
+});
+
+const additionalItem = z.object({
+  type: text(2, 40),
+  title: text(5, 120),
+  problem: text(10, 500),
+  consequence: text(10, 600),
+  proposedSolution: text(10, 600),
+  serviceKey: z.string(),
+  impact: z.enum(IMPACT_LEVELS),
+  severity: z.number().int().min(1).max(5),
+  confidence: z.number().min(0).max(1),
+  evidenceKeys: z.array(z.string()).min(1).max(8),
+});
+
+export const refinedSchema = z.object({
+  refined: z.array(lenient(refinedItem)).default([]),
+  additional: z.array(lenient(additionalItem)).default([]),
 });
 
 export const OPPORTUNITY_SYSTEM = `Eres consultor comercial senior de una consultora de IA y automatización para negocios locales. Recibes (1) hechos verificados de un negocio, cada uno con una clave, y (2) oportunidades ya detectadas por reglas, con su evidencia.
@@ -53,7 +55,7 @@ Tu trabajo:
 A) "refined": reescribe problema, consecuencia y solución de cada oportunidad detectada para que suene a este negocio concreto (menciona datos reales de los hechos: su valoración, su nicho, lo que se vio en su web) en vez de texto genérico. Mantén exactamente el mismo diagnóstico: no añadas problemas nuevos ni cambies lo que la evidencia respalda. Referencia cada una por su "ref".
 B) "additional": como máximo 3 oportunidades NUEVAS que no estén ya cubiertas y que se desprendan claramente de los hechos (p. ej. seguimiento de leads, reactivación de clientes antiguos, procesos manuales visibles). Cada una debe citar claves de hechos que existan en "evidenceKeys". Si no hay base suficiente, devuelve [].
 
-Reglas estrictas: español profesional y sin exageraciones; no inventes datos, cifras ni problemas; las ausencias solo se afirman si hay un hecho de tipo "absence"; no prometas resultados cuantificados; serviceKey debe ser uno de la lista dada.`;
+Reglas estrictas: español profesional y sin exageraciones; no inventes datos, cifras ni problemas; las ausencias solo se afirman si hay un hecho de tipo "absence"; si solo consta que una fuente externa no lista un dato (p. ej. el sitio web), escribe «no consta en las fuentes consultadas», nunca «no tiene»; no prometas resultados cuantificados; serviceKey debe ser uno de la lista dada.`;
 
 function promptFor(ctx: OpportunityContext, facts: Facts, drafts: OpportunityDraft[]): string {
   const c = ctx.company;
@@ -75,6 +77,7 @@ function promptFor(ctx: OpportunityContext, facts: Facts, drafts: OpportunityDra
 export function applyRefinement(drafts: OpportunityDraft[], raw: z.infer<typeof refinedSchema>, facts: Facts): OpportunityDraft[] {
   const out = drafts.map((d) => ({ ...d }));
   for (const r of raw.refined) {
+    if (!r) continue;
     const idx = Number(r.ref.replace(/^o/, "")) - 1;
     const target = out[idx];
     if (!target) continue;
@@ -87,6 +90,7 @@ export function applyRefinement(drafts: OpportunityDraft[], raw: z.infer<typeof 
   const existingTypes = new Set(out.map((d) => d.type));
   let added = 0;
   for (const a of raw.additional) {
+    if (!a) continue;
     if (added >= MAX_EXTRA_FROM_LLM) break;
     if (!(SERVICE_KEYS as string[]).includes(a.serviceKey)) continue;
     const evidence = facts.pick(...new Set(a.evidenceKeys));

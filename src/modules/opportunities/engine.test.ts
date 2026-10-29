@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { basicSignals, makeCompany } from "../analysis/__fixtures__/builders";
 import { buildFacts } from "../analysis/facts";
 import { interpretWithRules } from "../analysis/rule-interpreter";
-import { applyRefinement } from "./engine";
+import { applyRefinement, refinedSchema } from "./engine";
 import { detectWithRules } from "./rules";
 import type { OpportunityContext } from "./types";
 
@@ -87,5 +87,16 @@ describe("detectOpportunities (selección IA / reglas)", () => {
     expect(r.drafts.length).toBe(detectWithRules(ctx, facts).length);
     expect(r.fallbackReason).toMatch(/timeout/);
     delete process.env.ANTHROPIC_API_KEY;
+  });
+});
+
+describe("refinedSchema", () => {
+  it("descarta solo los elementos mal formados en vez de invalidar toda la respuesta del modelo", () => {
+    const parsed = refinedSchema.parse({
+      refined: [{ ref: "o1", problem: "Problema suficientemente largo", consequence: "Consecuencia suficientemente larga", proposedSolution: "Solución suficientemente larga" }],
+      additional: [{ title: "Sin campo type", problem: "x" }, 42],
+    });
+    expect(parsed.refined[0]).toMatchObject({ ref: "o1" });
+    expect(parsed.additional).toEqual([null, null]);
   });
 });

@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { discoveryProviders } from "@/modules/discovery/registry";
-import { createSearch } from "@/modules/discovery/service";
+import { errorMessage } from "@/lib/errors";
+import { addCompanyByWebsite, createSearch } from "@/modules/discovery/service";
 
 export interface SearchFormState {
   error?: string;
@@ -39,4 +40,28 @@ export async function startSearch(_prev: SearchFormState, form: FormData): Promi
     autoAnalyze: parsed.data.autoAnalyze,
   });
   redirect(`/searches/${id}`);
+}
+
+const manualSchema = z.object({
+  website: z.string().trim().min(3, "Indica la web del negocio").max(300),
+  name: z.string().trim().max(120).optional(),
+  niche: z.string().trim().min(2, "Indica el tipo de negocio").max(120),
+  location: z.string().trim().min(2, "Indica la ciudad o ubicación").max(160),
+});
+
+export async function addCompany(_prev: SearchFormState, form: FormData): Promise<SearchFormState> {
+  const parsed = manualSchema.safeParse({
+    website: form.get("website"),
+    name: form.get("name") || undefined,
+    niche: form.get("niche"),
+    location: form.get("location"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos no válidos" };
+  let companyId: number;
+  try {
+    ({ companyId } = await addCompanyByWebsite({ ...parsed.data, autoAnalyze: form.get("autoAnalyze") === "on" }));
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  redirect(`/companies/${companyId}`);
 }

@@ -8,6 +8,8 @@ export interface NicheProfile {
   tags: OsmTag[];
   /** Categoría legible para cuando el elemento no la declara. */
   label: string;
+  /** Patrón de nombre (Overpass regex) para incluir clínicas/consultorios genéricos que OSM no etiquetó con el nicho. */
+  nameHint?: string;
 }
 
 interface NicheRule {
@@ -16,15 +18,15 @@ interface NicheRule {
   profile: NicheProfile;
 }
 
-const rule = (match: RegExp, label: string, tags: OsmTag[]): NicheRule => ({ match, profile: { tags, label } });
+const rule = (match: RegExp, label: string, tags: OsmTag[], nameHint?: string): NicheRule => ({ match, profile: { tags, label, ...(nameHint ? { nameHint } : {}) } });
 
 /**
  * Correspondencia entre nichos habituales (es/en) y etiquetas de OpenStreetMap.
  * El orden importa: la primera regla que coincide gana, así que lo más específico va antes.
  */
 const RULES: NicheRule[] = [
-  rule(/\b(odontolog|dentist|dental|dentales|ortodon)/, "Dentista", [["amenity", "dentist"], ["healthcare", "dentist"]]),
-  rule(/\b(veterinari|vet clinic|animal hospital)/, "Veterinaria", [["amenity", "veterinary"]]),
+  rule(/\b(odontolog|dentist|dental|dentales|ortodon)/, "Dentista", [["amenity", "dentist"], ["healthcare", "dentist"]], "dental|dentist|odont|ortodon"),
+  rule(/\b(veterinari|vet clinic|animal hospital)/, "Veterinaria", [["amenity", "veterinary"]], "veterinari|vet\\b"),
   rule(/\b(farmacia|pharmac|drugstore)/, "Farmacia", [["amenity", "pharmacy"], ["healthcare", "pharmacy"]]),
   rule(/\b(psicolog|psycholog|psicoterap|therap)/, "Psicología / terapia", [["healthcare", "psychotherapist"], ["healthcare", "psychologist"], ["healthcare", "counselling"]]),
   rule(/\b(kinesiolog|fisioterap|physio)/, "Fisioterapia", [["healthcare", "physiotherapist"]]),

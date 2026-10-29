@@ -341,7 +341,10 @@ export function buildFacts(input: FactsInput): Facts {
         ),
       );
     }
-    if (!tracking && !crmTool && absenceReliability > 0) {
+    // Los constructores alojados (Wix, Squarespace…) inyectan analítica y píxeles con scripts propios al cargar:
+    // su ausencia en el HTML descargado no demuestra que no existan, así que no se afirma.
+    const hostedBuilder = /^(Wix|Squarespace|Shopify|Webflow|Jimdo|GoDaddy Website Builder|Tiendanube)/.test(tech?.cms ?? "");
+    if (!tracking && !crmTool && absenceReliability > 0 && !hostedBuilder) {
       add(ev("absence", "website.no_tracking", "Sin analítica ni seguimiento visibles", "No se detectó Google Analytics, Tag Manager, píxeles publicitarios ni herramientas de CRM/marketing en el código de la web.", { sourceUrl: site }));
     }
   }

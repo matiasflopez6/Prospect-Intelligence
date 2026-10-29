@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { openDatabase } from "@/lib/db/client";
 import { tables, type Db } from "@/lib/db";
 import { MissingCredentialError } from "@/lib/errors";
-import { runDiscovery, type DiscoveryDeps } from "../service";
+import { addCompanyByWebsite, nameFromHtml, runDiscovery, type DiscoveryDeps } from "../service";
 import type { DiscoveredBusiness, DiscoveryProvider } from "../types";
 
 const at = new Date("2026-02-01");
@@ -159,5 +159,39 @@ describe("runDiscovery", () => {
     const id = newSearch();
     const out = (await runDiscovery(id, ctx, baseDeps({ providers: [provider("openstreetmap", async () => [])] }))) as { status: string; found: number };
     expect(out).toMatchObject({ status: "completed", found: 0 });
+  });
+});
+
+describe("addCompanyByWebsite", () => {
+  const page = (html: string) => (async () => ({ ok: true, requestedUrl: "", finalUrl: "https://www.ejemplo.test/", status: 200, html, ttfbMs: 1, totalMs: 1, bytes: html.length, truncated: false, redirects: 0 })) as never;
+  const noEnrich = async () => ({ pagesVisited: ["https://www.ejemplo.test/"], emails: ["hola@ejemplo.test"], email: "hola@ejemplo.test", socialLinks: [], phones: [] });
+
+  it("lee el nombre de la web, guarda la empresa con CRM 'new' y encola el análisis", async () => {
+    const enqueue = vi.fn(() => 1);
+    const out = await addCompanyByWebsite(
+      { website: "ejemplo.test", niche: "clínicas dentales", location: "Salta, Argentina" },
+      { db, fetchHtml: page("<title>Clínica Ejemplo | Odontología en Salta</title>"), enrichWebsite: noEnrich, enqueue },
+    );
+    expect(out.created).toBe(true);
+    const c = db.select().from(tables.companies).where(eq(tables.companies.id, out.companyId)).get()!;
+    expect(c).toMatchObject({ name: "Clínica Ejemplo", website: "https://www.ejemplo.test/", websiteDomain: "ejemplo.test", email: "hola@ejemplo.test", city: "Salta", country: "Argentina", niche: "clínicas dentales" });
+    expect(db.select().from(tables.crmEntries).where(eq(tables.crmEntries.companyId, out.companyId)).get()?.status).toBe("new");
+    expect(db.select().from(tables.companySources).where(eq(tables.companySources.companyId, out.companyId)).all().map((x) => x.provider).sort()).toEqual(["manual", "website"]);
+    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: "company.analyze", companyId: out.companyId }));
+  });
+
+  it("no duplica si la empresa ya existe y falla con claridad si la web no se puede leer", async () => {
+    const deps = { db, fetchHtml: page("<title>Clínica Ejemplo</title>"), enrichWebsite: noEnrich, enqueue: vi.fn(() => 1) };
+    const a = await addCompanyByWebsite({ website: "ejemplo.test", niche: "x", location: "Salta" }, deps);
+    const b = await addCompanyByWebsite({ website: "https://ejemplo.test", niche: "x", location: "Salta" }, deps);
+    expect(b).toEqual({ companyId: a.companyId, created: false });
+    const down = (async () => ({ ok: false, requestedUrl: "", kind: "dns", message: "No se encontró el dominio" })) as never;
+    await expect(addCompanyByWebsite({ website: "noexiste.test", niche: "x", location: "Salta" }, { ...deps, fetchHtml: down })).rejects.toThrow(/No se encontró el dominio/);
+  });
+
+  it("nameFromHtml prefiere og:site_name y recorta el eslogan del <title>", () => {
+    expect(nameFromHtml('<meta property="og:site_name" content="Dental Uno"><title>Otra cosa</title>')).toBe("Dental Uno");
+    expect(nameFromHtml("<title>Dental Dos - Tu sonrisa</title>")).toBe("Dental Dos");
+    expect(nameFromHtml("<p>sin título</p>")).toBeUndefined();
   });
 });

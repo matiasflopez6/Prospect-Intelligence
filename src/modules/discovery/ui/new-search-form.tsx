@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { startSearch, type SearchFormState } from "@/app/searches/actions";
+import { addCompany, startSearch, type SearchFormState } from "@/app/searches/actions";
 import { Badge, Button, Field, Input } from "@/components/ui";
 
 export interface ProviderOption {
@@ -57,6 +57,42 @@ export function NewSearchForm({ providers }: { providers: ProviderOption[] }) {
       <div>
         <Button type="submit" variant="primary" disabled={pending}>
           {pending ? "Lanzando…" : "Buscar empresas"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function AddCompanyForm() {
+  const [state, action, pending] = useActionState<SearchFormState, FormData>(addCompany, {});
+  return (
+    <form action={action} className="grid max-w-2xl gap-4">
+      <Field label="Web del negocio" hint="Los datos se leen de su propia web; no se inventa nada">
+        <Input name="website" required maxLength={300} placeholder="www.ejemplo.com.ar" />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Nombre" hint="Opcional: se deduce de la web">
+          <Input name="name" maxLength={120} />
+        </Field>
+        <Field label="Tipo de negocio">
+          <Input name="niche" required minLength={2} maxLength={120} placeholder="clínicas dentales" />
+        </Field>
+        <Field label="Ciudad o ubicación">
+          <Input name="location" required minLength={2} maxLength={160} placeholder="Salta, Argentina" />
+        </Field>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input type="checkbox" name="autoAnalyze" defaultChecked className="accent-[var(--color-accent)]" />
+        Analizarla automáticamente
+      </label>
+      {state.error && (
+        <p role="alert" className="rounded-md border border-bad/30 bg-bad-soft px-3 py-2 text-sm text-bad">
+          {state.error}
+        </p>
+      )}
+      <div>
+        <Button type="submit" variant="secondary" disabled={pending}>
+          {pending ? "Leyendo la web…" : "Añadir empresa"}
         </Button>
       </div>
     </form>

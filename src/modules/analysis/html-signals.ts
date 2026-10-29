@@ -61,6 +61,7 @@ const BOOKING_VENDORS: [string, RegExp][] = [
   ["Cliniko", /cliniko\.com/i],
   ["Jane App", /janeapp\.com/i],
   ["Zenoti", /zenoti\.com/i],
+  ["NeoCita", /neocita\./i],
   ["Wix Bookings", /wix-bookings|bookings\.wixapps/i],
   ["Amelia (WordPress)", /ameliabooking|amelia-booking/i],
   ["Bookly (WordPress)", /bookly-form|bookly\.js|booking-?ly/i],
@@ -169,7 +170,8 @@ const CTA_PATTERNS: { kind: NonNullable<WebsiteSignals["ctas"]>[number]["kind"];
   { kind: "form", re: /contact(a|o|ar|anos|ános|us)|cotiz|presupuesto|consulta|solicit(a|ar|ud)|pide|quiero|empez|comienz|get started|request|free quote|env[ií]a(nos)? (un )?mensaje|escr[ií]benos/i },
 ];
 
-const PHONE_RE = /(?:\+|00)?\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}\b/g;
+// El «9» suelto tras el prefijo país es el de los móviles argentinos (+54 9 387…): sin él el número perdía el +54.
+const PHONE_RE = /(?:\+|00)?\d{1,3}[\s.-]?(?:9[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}\b/g;
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
 function clean(s: string | undefined): string {
@@ -207,6 +209,8 @@ export function extractPageSignals(html: string, pageUrl: string): PageSignals {
   // Texto visible (sin scripts/estilos).
   const $body = $("body").clone();
   $body.find("script, style, noscript, template, svg").remove();
+  // cheerio pega el texto de elementos contiguos sin espacio («…2442» + «20 de Febrero» → «244220 de Febrero»).
+  $body.find("*").not("b, i, em, strong, u, small, sup, sub, mark, abbr, code").after(" ");
   const text = clean($body.text());
   const wordCount = text ? text.split(" ").length : 0;
   const scriptCount = $("script").length;
@@ -280,7 +284,13 @@ export function extractPageSignals(html: string, pageUrl: string): PageSignals {
       if (type === "tel" && ($el.attr("required") != null || $el.attr("aria-required") === "true")) requiredPhone = true;
       if (type === "email") hasEmail = true;
     });
-    if (fields.length === 0) return;
+    if (fields.length === 0) {
+      // <form> sin ningún campo en el HTML pero con botón: los campos los dibuja JavaScript (Framer, Webflow…).
+      if ($f.find("input, textarea, select").length === 0 && $f.find("button, [type=submit]").length > 0) {
+        forms.push({ action: resolve($f.attr("action"), pageUrl), fields: [], fieldCount: undefined, pageUrl });
+      }
+      return;
+    }
     const isNewsletter = fields.length === 1 && hasEmail;
     forms.push({
       action: resolve($f.attr("action"), pageUrl),
@@ -317,6 +327,27 @@ export function extractPageSignals(html: string, pageUrl: string): PageSignals {
       bookingVendor ??= v;
       const abs = resolve(src, pageUrl);
       if (abs && !/\.js(\?|$)/.test(abs)) bookingUrls.add(abs);
+    }
+  }
+  if (!bookingVendor) {
+    // Botón «Sacar/Solicitar turno», «Reservar»… que sale a OTRO dominio: es un sistema de reservas externo aunque no figure en la lista.
+    const pageHost = (() => {
+      try {
+        return new URL(pageUrl).hostname.replace(/^www\./, "");
+      } catch {
+        return "";
+      }
+    })();
+    for (const a of anchors) {
+      if (!/^(solicitar|sacar|saca|pedir|pedí|reservar|reserva|agendar|agenda|tomar|toma)\b.{0,20}\b(turno|cita|hora|online)|^(turnos?|reserva[sr]?)( online)?$/i.test(clean(a.text))) continue;
+      const abs = resolve(a.href, pageUrl);
+      if (!abs || !/^https?:/i.test(abs)) continue;
+      const host = new URL(abs).hostname.replace(/^www\./, "");
+      if (host && host !== pageHost && !/(wa\.me|whatsapp\.com|facebook\.com|instagram\.com|google\.[a-z.]+\/maps|goo\.gl|maps\.app)/i.test(host + abs)) {
+        bookingVendor = `Enlace externo de turnos (${host})`;
+        bookingUrls.add(abs);
+        break;
+      }
     }
   }
   if (!bookingVendor) {
@@ -367,6 +398,12 @@ export function extractPageSignals(html: string, pageUrl: string): PageSignals {
     if (!abs) continue;
     const hit = SOCIAL.find(([, re]) => re.test(abs));
     if (!hit || SOCIAL_NOISE.test(abs)) continue;
+    // Un enlace a la portada de la red (https://www.instagram.com/) es un icono de plantilla, no el perfil del negocio.
+    try {
+      if (new URL(abs).pathname.replace(/\/+$/, "") === "") continue;
+    } catch {
+      continue;
+    }
     const key = `${hit[0]}|${abs.replace(/[?#].*$/, "").replace(/\/$/, "").toLowerCase()}`;
     if (seenSocial.has(key)) continue;
     seenSocial.add(key);
@@ -408,8 +445,16 @@ export function extractPageSignals(html: string, pageUrl: string): PageSignals {
   if (/@media[^{]*(max|min)-width/i.test($("style").text())) hints.push("media queries en CSS inline");
   if (/elementor|et_pb_|wp-block-|bootstrap|tailwind|col-(xs|sm|md|lg)-|flex-wrap/i.test(rawHtml)) hints.push("framework/maquetación responsive");
 
-  // Copyright
-  const years = [...text.matchAll(/(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(20\d{2}|19\d{2})/gi)].map((m) => Number(m[1]));
+  // Copyright. Un año metido en un elemento «año actual» (id/clase tipo curYear, currentYear, auto-year…) lo rellena
+  // un script al cargar: el HTML trae un valor fijo viejo pero el visitante ve el año en curso, así que no se cuenta.
+  const $footer = $("body").clone();
+  $footer.find("script, style, noscript, template, svg").remove();
+  $footer.find("[id], [class]").each((_, el) => {
+    const marks = `${$(el).attr("id") ?? ""} ${$(el).attr("class") ?? ""}`;
+    if (/(cur(rent)?|auto|dynamic|now|this)[_-]?year|year[_-]?(cur(rent)?|auto|dynamic)|js-?year/i.test(marks)) $(el).text("{año dinámico}");
+  });
+  const copyrightText = clean($footer.text());
+  const years = [...copyrightText.matchAll(/(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(20\d{2}|19\d{2})/gi)].map((m) => Number(m[1]));
   const copyrightYear = years.length ? Math.max(...years) : undefined;
 
   const isContactPage = /(^|\/)(contact|contacto|contactanos|contact-us)(\/|\.|$)/i.test(pageUrl.replace(origin, ""));

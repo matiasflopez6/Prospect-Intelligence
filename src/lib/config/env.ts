@@ -17,7 +17,7 @@ const schema = z.object({
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-5-5"),
   /** Google AI Studio (Gemini): clave de https://aistudio.google.com/apikey */
   GEMINI_API_KEY: optionalString,
-  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GEMINI_MODEL: z.string().default("gemini-flash-latest"),
   /** Fuerza el proveedor cuando hay varias claves; vacío = el que tenga clave. */
   LLM_PROVIDER: z.enum(["anthropic", "gemini"]).optional().or(z.literal("").transform(() => undefined)),
   REPORTS_DIR: z.string().default("./data/reports"),
