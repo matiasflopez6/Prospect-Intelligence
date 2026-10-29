@@ -77,6 +77,12 @@ export async function runDiscovery(searchId: number, ctx: JobContext, deps: Disc
 
   db.update(tables.searches).set({ status: "running", startedAt: new Date(), error: null }).where(eq(tables.searches.id, searchId)).run();
   const providerResults: ProviderResults = {};
+  // Si el usuario borra la búsqueda mientras corre, se abandona sin guardar nada (ver delete.ts).
+  const deleted = () => !db.select({ id: tables.searches.id }).from(tables.searches).where(eq(tables.searches.id, searchId)).get();
+  const cancelled = () => {
+    log("La búsqueda fue borrada; se cancela el trabajo");
+    return { searchId, status: "cancelled" as const };
+  };
 
   try {
     ctx.setProgress(5, "Consultando fuentes");
@@ -118,6 +124,7 @@ export async function runDiscovery(searchId: number, ctx: JobContext, deps: Disc
       throw new Error(`Ninguna fuente respondió. ${detail}`);
     }
 
+    if (deleted()) return cancelled();
     ctx.setProgress(40, "Deduplicando");
     const merged = mergeBusinesses(found).slice(0, search.targetCount);
 
@@ -135,6 +142,7 @@ export async function runDiscovery(searchId: number, ctx: JobContext, deps: Disc
       ctx.setProgress(50 + Math.round((++done / Math.max(withSite.length, 1)) * 35));
     });
 
+    if (deleted()) return cancelled();
     ctx.setProgress(88, "Guardando empresas");
     const { companyIds, created } = persist(db, searchId, search, merged, enrichments);
 
@@ -162,6 +170,7 @@ export async function runDiscovery(searchId: number, ctx: JobContext, deps: Disc
     ctx.setProgress(100, "Completado");
     return { searchId, status, found: companyIds.length, created, providerResults };
   } catch (e) {
+    if (deleted()) return cancelled();
     db.update(tables.searches)
       .set({ status: "failed", error: errorMessage(e), providerResults, finishedAt: new Date() })
       .where(eq(tables.searches.id, searchId))
