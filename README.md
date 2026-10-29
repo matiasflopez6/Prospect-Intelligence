@@ -28,7 +28,7 @@ Ninguna es obligatoria para arrancar: lo que falte aparece como «Falta configur
 | `APP_PASSWORD`, `APP_USERNAME` | Protección HTTP Basic de toda la app (obligatoria en Railway; en local, opcional) | Elígela tú |
 | `PAGESPEED_API_KEY`, `OSM_CONTACT` | Opcionales (cuota de PageSpeed; User-Agent de OpenStreetMap) | |
 
-Sin clave de IA el análisis funciona con reglas deterministas (se indica en la ficha), pero los mensajes de contacto requieren IA. OpenStreetMap funciona sin clave. Con el plan gratuito de Gemini puedes recibir errores 429 de cuota: el análisis de esa empresa usa reglas y queda anotado; reanalízala más tarde.
+Sin clave de IA el análisis funciona con reglas deterministas (se indica en la ficha), pero los mensajes de contacto requieren IA. OpenStreetMap funciona sin clave. Gemini usa `gemini-3.5-flash-lite` por defecto, con `gemini-3.8-flash` y los alias `gemini-flash-lite-latest` / `gemini-flash-latest` como respaldo (`GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`). Un limitador interno mantiene las peticiones por debajo de `GEMINI_RPM` (15/min por modelo, el límite del plan gratuito de Flash Lite); si Google responde 429, el trabajo espera el tiempo que indique (`Retry-After`) y reintenta, y solo cambia de modelo o cae a reglas deterministas (anotado en la ficha) cuando agota los reintentos o la cuota diaria. Cada análisis consume unas 2 peticiones (interpretación + oportunidades), así que 500 peticiones/día ≈ 250 empresas/día y 15/min ≈ 7 empresas/min.
 
 ### PDF del informe
 

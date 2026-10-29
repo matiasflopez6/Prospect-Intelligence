@@ -10,7 +10,7 @@ Aplicación de inteligencia comercial: **descubre** negocios reales por nicho y 
 | Estilos | Tailwind CSS 4 con tokens en `src/app/globals.css` | Diseño consistente, sin librería de componentes pesada |
 | Datos | SQLite (`better-sqlite3`) + Drizzle ORM | Persistente en `data/prospect.db`, sin servidor, migrable a Postgres |
 | Trabajos | Cola en tabla `jobs` + runner en proceso (`src/instrumentation.ts`) | Discovery/análisis son largos; persisten y se reanudan |
-| IA | `src/lib/llm` (Anthropic vía SDK, Google AI Studio/Gemini vía REST) | Un único punto de configuración; basta una clave (`ANTHROPIC_API_KEY` o `GEMINI_API_KEY`) |
+| IA | `src/lib/llm` (Anthropic vía SDK, Google AI Studio/Gemini vía REST) | Un único punto de configuración; basta una clave (`ANTHROPIC_API_KEY` o `GEMINI_API_KEY`). Gemini: limitador por minuto y modelo (`rate-limiter.ts`), espera y reintento ante 429, respaldo de modelos configurable |
 | Validación | zod | Env, salidas del LLM |
 
 Idioma de la UI y de los textos generados: **español**.
