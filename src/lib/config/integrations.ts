@@ -60,7 +60,7 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
       label: "IA: Claude o Gemini",
       purpose: "Interpretación del análisis, oportunidades, mensajes personalizados e informes. Basta una de las dos claves.",
       requiredEnv: ["ANTHROPIC_API_KEY", "GEMINI_API_KEY"],
-      optionalEnv: ["LLM_PROVIDER", "ANTHROPIC_MODEL", "GEMINI_MODEL"],
+      optionalEnv: ["LLM_PROVIDER", "ANTHROPIC_MODEL", "GEMINI_MODEL", "GEMINI_FALLBACK_MODELS", "GEMINI_RPM", "GEMINI_MAX_RETRIES"],
       anyOf: true,
       critical: true,
       detail: llm ? `Activo: ${PROVIDER_LABELS[llm.provider]} · ${llm.model}` : undefined,
