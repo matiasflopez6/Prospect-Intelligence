@@ -2,9 +2,13 @@
 @import "@fontsource-variable/inter";
 
 /*
- * Tokens de diseño. Paleta: fondo claro, blancos, grises, negro y UN acento (teal).
+ * Tokens de diseño. Paleta: grises neutros y UN acento (teal), en tema claro y oscuro.
  * Los colores semánticos (éxito/aviso/error) se usan solo para estados, nunca decorativos.
+ * Los valores de `@theme` son el tema claro; `html[data-theme="dark"]` (más abajo) los redefine.
+ * Los componentes usan siempre las utilidades (`bg-surface`, `text-ink`…), nunca colores fijos.
  */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -23,6 +27,9 @@
   --color-accent-hover: #095a57;
   --color-accent-soft: #e5f1f0;
   --color-accent-line: #b5d8d5;
+  --color-on-accent: #ffffff;
+  /* Velo detrás de los diálogos: siempre oscuro, también en el tema oscuro. */
+  --color-scrim: rgb(14 17 22 / 0.4);
 
   --color-ok: #1a7f4b;
   --color-ok-soft: #e6f3ec;
@@ -45,6 +52,40 @@
   --radius-lg: 8px;
 
   --shadow-pop: 0 4px 16px rgb(14 17 22 / 0.08), 0 0 0 1px rgb(14 17 22 / 0.06);
+}
+
+/* Tema oscuro: gris neutro, mismo acento (teal) aclarado para mantener el contraste. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-canvas: #0d0f12;
+  --color-surface: #15181c;
+  --color-sunken: #1d2126;
+  --color-line: #292e35;
+  --color-line-strong: #3a414a;
+
+  --color-ink: #eceef1;
+  --color-ink-2: #c4c9d1;
+  --color-muted: #97a0ac;
+  --color-faint: #7d8591;
+
+  --color-accent: #35b8b0;
+  --color-accent-hover: #55cbc3;
+  --color-accent-soft: #12302f;
+  --color-accent-line: #1f5a57;
+  --color-on-accent: #04201f;
+  --color-scrim: rgb(0 0 0 / 0.6);
+
+  --color-ok: #4cc38a;
+  --color-ok-soft: #12281d;
+  --color-warn: #e8a640;
+  --color-warn-soft: #2e2411;
+  --color-bad: #f4796d;
+  --color-bad-soft: #331816;
+
+  --shadow-pop: 0 4px 16px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 html {

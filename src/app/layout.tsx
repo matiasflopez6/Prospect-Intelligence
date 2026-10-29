@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SidebarNav } from "@/components/layout/nav";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { getIntegrationStatuses } from "@/lib/config/integrations";
 import "./globals.css";
 
@@ -14,7 +15,11 @@ export const dynamic = "force-dynamic";
 export default function RootLayout({ children }: { children: ReactNode }) {
   const pending = getIntegrationStatuses().filter((s) => s.critical && !s.configured).length;
   return (
-    <html lang="es">
+    // `data-theme` lo fija el script del <head> antes de hidratar, de ahí suppressHydrationWarning.
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         <SidebarNav pendingIntegrations={pending} />
         <main className="lg:pl-56">
