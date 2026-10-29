@@ -30,8 +30,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/drizzle ./drizzle
 COPY --from=build /app/next.config.ts ./next.config.ts
+# /data lo monta un volumen de Railway (Settings → Volumes); no se declara VOLUME porque Railway lo rechaza.
 RUN mkdir -p /data/reports
-VOLUME ["/data"]
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS "http://127.0.0.1:${PORT:-3000}/api/health" >/dev/null || exit 1
