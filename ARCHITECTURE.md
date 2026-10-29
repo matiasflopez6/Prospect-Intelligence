@@ -119,6 +119,8 @@ Los campos de resumen de `companies` los escribe el pipeline de análisis; el li
 
 Tokens en `globals.css` (`canvas, surface, line, ink, muted, accent…`). Un único acento (teal `#0b6e6a`); verde/ámbar/rojo solo como semántica de estado. Componentes base en `src/components/ui`: `Button/ButtonLink`, `Badge/CrmStatusBadge/ImpactBadge/ScoreBadge/ConfidenceMeter`, `Panel/Stat/StatRow/DescriptionList/EmptyState`, `DataTable/Pagination`, `FilterBar` (estado en la URL), `Field/Input/Select/Textarea`, `PageHeader`. Reutiliza estos componentes antes de crear otros; si falta algo genérico, añádelo ahí.
 
+**Tema claro/oscuro**: los valores de `@theme` en `globals.css` son el tema claro; `html[data-theme="dark"]` redefine los mismos tokens (gris neutro, mismo acento teal aclarado, `--color-on-accent` para el texto sobre el acento). Los componentes usan solo utilidades de token (`bg-surface`, `text-ink`…), nunca colores fijos, y así funcionan en ambos temas; `dark:` está disponible como variante (`data-theme`). `lib/theme.ts` define el script del `<head>` que fija el tema antes del primer pintado (elección guardada en `localStorage["theme"]` o, en la primera visita, `prefers-color-scheme`), y `components/layout/theme-toggle.tsx` el botón sol/luna (en la barra lateral y en la cabecera móvil) y la sincronización con el sistema. El informe (HTML/PDF) es siempre claro: tiene su propia hoja de estilos, no usa los tokens.
+
 Evitar: tarjetas gigantes, degradados, iconos decorativos, gráficos sin información.
 
 ## Variables de entorno
