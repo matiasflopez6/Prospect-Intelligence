@@ -110,7 +110,7 @@ export function detectWithRules(ctx: OpportunityContext, factsIn?: Facts): Oppor
       drafts.push({
         type: "poor_website",
         title: "Web con problemas técnicos visibles",
-        problem: `La web ${tech.join(", ")}.`,
+        problem: `La web presenta problemas técnicos: ${tech.join(", ")}.`,
         evidenceKeys: techKeys,
         consequence:
           "Gran parte del tráfico local llega desde el móvil: una web lenta, no adaptada o marcada como «no segura» hace que visitantes con intención de contactar abandonen antes de ver la oferta.",
