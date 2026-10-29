@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+.env
+.env.*
+!.env.example
+data/*.db
+data/*.db-*
+data/reports
+data/discovery-live.json
+*.tsbuildinfo
+npm-debug.log
+Dockerfile
+.dockerignore
