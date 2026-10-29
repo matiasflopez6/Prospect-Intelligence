@@ -28,6 +28,8 @@
   --color-accent-soft: #e5f1f0;
   --color-accent-line: #b5d8d5;
   --color-on-accent: #ffffff;
+  /* Velo detrás de los diálogos: siempre oscuro, también en el tema oscuro. */
+  --color-scrim: rgb(14 17 22 / 0.4);
 
   --color-ok: #1a7f4b;
   --color-ok-soft: #e6f3ec;
@@ -71,6 +73,7 @@ html[data-theme="dark"] {
   --color-accent-soft: #12302f;
   --color-accent-line: #1f5a57;
   --color-on-accent: #04201f;
+  --color-scrim: rgb(0 0 0 / 0.6);
 
   --color-ok: #4cc38a;
   --color-ok-soft: #12281d;

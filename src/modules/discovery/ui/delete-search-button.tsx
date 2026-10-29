@@ -76,7 +76,7 @@ export function DeleteSearchButton({
           onClose={() => !deleting && setOpen(false)}
           onCancel={(e) => deleting && e.preventDefault()}
           onClick={(e) => e.target === dialog.current && close()}
-          className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-0 text-left text-ink shadow-xl backdrop:bg-ink/40"
+          className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-0 text-left text-ink shadow-xl backdrop:bg-scrim"
         >
           <div className="p-5">
             <h2 id={`delete-search-${searchId}-title`} className="text-base font-semibold">
