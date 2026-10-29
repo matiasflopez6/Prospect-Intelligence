@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Badge, ButtonLink, DataTable, EmptyState, PageHeader, Panel, ScoreBadge } from "@/components/ui";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { getSearchDetail } from "@/modules/discovery/queries";
+import { DeleteSearchButton } from "@/modules/discovery/ui/delete-search-button";
 import { AutoRefresh } from "@/modules/discovery/ui/auto-refresh";
 import { PROVIDER_STATUS, SEARCH_STATUS } from "@/modules/discovery/ui/status";
 
@@ -37,7 +38,12 @@ export default async function SearchDetailPage({ params }: { params: Promise<{ i
             <span>· {formatDateTime(search.createdAt)}</span>
           </span>
         }
-        actions={<ButtonLink href="/searches/new">Nueva búsqueda</ButtonLink>}
+        actions={
+          <>
+            <DeleteSearchButton searchId={search.id} label={`${search.niche} en ${search.location}`} variant="danger" size="md" />
+            <ButtonLink href="/searches/new">Nueva búsqueda</ButtonLink>
+          </>
+        }
       />
 
       {active && (
