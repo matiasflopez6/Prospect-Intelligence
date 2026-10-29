@@ -159,3 +159,13 @@ describe("createInterpreter (selección IA / reglas)", () => {
     delete process.env.ANTHROPIC_API_KEY;
   });
 });
+
+describe("ausencia de analítica", () => {
+  const noTracking = { analytics: [], pixels: [], crm: [] };
+  it("se afirma en una web propia sin trackers, pero no en un constructor alojado como Wix (los inyecta con scripts)", () => {
+    const own = buildFacts(input({ signals: basicSignals({ tech: { ...noTracking, cms: "WordPress" } }) }));
+    expect(own.evidence.has("website.no_tracking")).toBe(true);
+    const wix = buildFacts(input({ signals: basicSignals({ tech: { ...noTracking, cms: "Wix" } }) }));
+    expect(wix.evidence.has("website.no_tracking")).toBe(false);
+  });
+});

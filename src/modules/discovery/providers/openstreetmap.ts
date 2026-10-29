@@ -36,8 +36,11 @@ interface NominatimResult {
   osm_id?: number;
   display_name?: string;
   boundingbox?: [string, string, string, string]; // south, north, west, east
+  /** jsonv2 usa `category`; `class` es el nombre antiguo (formato json). */
+  category?: string;
   class?: string;
   type?: string;
+  addresstype?: string;
   importance?: number;
   address?: Record<string, string>;
 }
@@ -90,7 +93,7 @@ export function createOpenStreetMapProvider(deps: OsmDeps = {}): DiscoveryProvid
       { headers: { "User-Agent": userAgent(), Accept: "application/json" } },
       { provider: PROVIDER, fetchImpl: deps.fetchImpl, limiter: nominatimLimiter, signal: ctx.signal, retries: deps.retries, backoffMs: deps.backoffMs },
     );
-    const place = pickPlace(results);
+    const place = pickPlace(results, location);
     if (!place) throw new ProviderError(PROVIDER, `No se encontró la ubicación "${location}" en Nominatim`);
     geocodeCache.set(location, place);
     return place;
@@ -157,9 +160,10 @@ export function createOpenStreetMapProvider(deps: OsmDeps = {}): DiscoveryProvid
   };
 }
 
-function pickPlace(results: NominatimResult[]): GeocodedPlace | undefined {
+export function pickPlace(results: NominatimResult[], query = ""): GeocodedPlace | undefined {
   // Preferimos límites administrativos/lugares (ciudades) sobre calles o negocios homónimos.
-  const ranked = [...results].sort((a, b) => placeRank(b) - placeRank(a));
+  const wantsRegion = REGION_WORDS.test(query);
+  const ranked = [...results].sort((a, b) => placeRank(b, wantsRegion) - placeRank(a, wantsRegion));
   const r = ranked[0];
   if (!r) return undefined;
   const addr = r.address ?? {};
@@ -179,10 +183,20 @@ function pickPlace(results: NominatimResult[]): GeocodedPlace | undefined {
   return place;
 }
 
-function placeRank(r: NominatimResult): number {
+const REGION_WORDS = /\b(provincia|province|state|estado|region|regi[oó]n|departamento|county|condado)\b/i;
+const CITY_LEVEL = new Set(["city", "town", "village", "municipality", "suburb", "borough", "city_district", "hamlet"]);
+const REGION_LEVEL = new Set(["state", "region", "province", "state_district", "county", "country"]);
+
+function placeRank(r: NominatimResult, wantsRegion: boolean): number {
   let s = r.importance ?? 0;
-  if (r.class === "boundary" || r.class === "place") s += 1;
+  const cat = r.category ?? r.class;
+  if (cat === "boundary" || cat === "place") s += 1;
   if (r.osm_type === "relation") s += 0.5;
+  // "Salta, Argentina" suele ser la ciudad, no toda la provincia homónima (que sería miles de km² y cientos de negocios ajenos).
+  if (!wantsRegion) {
+    if (r.addresstype && CITY_LEVEL.has(r.addresstype)) s += 0.5;
+    else if (r.addresstype && REGION_LEVEL.has(r.addresstype)) s -= 0.5;
+  }
   return s;
 }
 
@@ -201,6 +215,13 @@ export function buildOverpassQuery(place: GeocodedPlace, profile: NicheProfile |
   if (profile) {
     for (const [k, v] of profile.tags) {
       clauses.push(v ? `nwr["${k}"="${escapeOverpass(v)}"]${filter};` : `nwr["${k}"]${filter};`);
+    }
+    // Consultorios que OSM etiqueta como clínica/médico genérico pero cuyo nombre delata el nicho.
+    if (profile.nameHint) {
+      const hint = escapeOverpass(profile.nameHint);
+      for (const key of ["amenity", "healthcare"]) {
+        clauses.push(`nwr["${key}"~"^(clinic|doctors|doctor|centre|hospital)$"]["name"~"${hint}",i]${filter};`);
+      }
     }
   } else {
     const kw = escapeOverpass(keywords.join("|"));

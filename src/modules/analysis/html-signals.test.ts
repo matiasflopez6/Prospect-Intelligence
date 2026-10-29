@@ -25,6 +25,39 @@ describe("extractPageSignals", () => {
     expect(s.followLinks).toContainEqual({ url: "https://clinicasonrisa.example/contacto", kind: "contact" });
   });
 
+  it("ignora un año de copyright que un script actualiza al cargar (curYear)", () => {
+    const html = '<html><body><p>Hola</p><footer>Copyright &#169; <span id="_publicarCurYear">2020</span> | Legales</footer></body></html>';
+    expect(extractPageSignals(html, "https://x.example/").copyrightYear).toBeUndefined();
+    const fixed = '<html><body><footer>© <span class="year">2020</span></footer></body></html>';
+    expect(extractPageSignals(fixed, "https://x.example/").copyrightYear).toBe(2020);
+  });
+
+  it("reconoce un botón «Solicitar turno» que sale a un sistema externo de reservas", () => {
+    const html = '<html><body><a href="https://www.neocita.com/clinica-x">Solicitar Turno</a><a href="https://wa.me/549387">Reservar</a></body></html>';
+    expect(extractPageSignals(html, "https://clinica.example/").bookingVendor).toBe("NeoCita");
+    const unknown = '<html><body><a href="https://agenda.nuevoservicio.test/x">Sacar turno online</a></body></html>';
+    expect(extractPageSignals(unknown, "https://clinica.example/").bookingVendor).toBe("Enlace externo de turnos (agenda.nuevoservicio.test)");
+    const social = '<html><body><a href="https://wa.me/549387">Reservar turno</a></body></html>';
+    expect(extractPageSignals(social, "https://clinica.example/").bookingVendor).toBeUndefined();
+  });
+
+  it("conserva el prefijo +54 9 de los móviles argentinos", () => {
+    const html = "<html><body><p>Cel: +54 9 387 220 2442</p></body></html>";
+    expect(extractPageSignals(html, "https://clinica.example/").phones).toEqual(["+54 9 387 220 2442"]);
+  });
+
+  it("no confunde iconos de plantilla (portada de la red), no pega textos contiguos y cuenta formularios dibujados por JS", () => {
+    const html =
+      '<html><body><a href="https://www.instagram.com/">ig</a><a href="https://www.instagram.com/clinica_x/">ig</a>' +
+      "<p><span>Cel: 387 220 2442</span><span>20 de Febrero 731</span></p>" +
+      '<form class="framer-x"><button type="submit">Enviar</button></form></body></html>';
+    const s = extractPageSignals(html, "https://clinica.example/");
+    expect(s.social.map((x) => x.url)).toEqual(["https://www.instagram.com/clinica_x/"]);
+    expect(s.phones).toEqual(["387 220 2442"]);
+    expect(s.forms).toHaveLength(1);
+    expect(s.forms[0]?.fieldCount).toBeUndefined();
+  });
+
   it("detecta formularios con sus campos y distingue los largos", () => {
     const s = extractPageSignals(BASIC_CLINIC_CONTACT, "https://clinicasonrisa.example/contacto");
     expect(s.forms).toHaveLength(1);

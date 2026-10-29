@@ -1,7 +1,9 @@
+import { load } from "cheerio";
 import { and, eq } from "drizzle-orm";
 import { getDb, tables, type Db } from "@/lib/db";
 import { errorMessage, MissingCredentialError } from "@/lib/errors";
 import { logActivity } from "../activity/service";
+import { normalizeWebsiteUrl, safeFetchHtml } from "../analysis/safe-fetch";
 import type { JobContext } from "../jobs/handlers";
 import { enqueueJob } from "../jobs/service";
 import { nameSimilarity, normalizeName, websiteDomain } from "./lib/normalize";
@@ -358,4 +360,103 @@ function persist(
     });
   });
   return { companyIds, created };
+}
+
+
+export interface AddCompanyInput {
+  /** Web propia del negocio (con o sin https://). */
+  website: string;
+  niche: string;
+  location: string;
+  /** Si se omite se lee del título de la web (og:site_name / <title>). */
+  name?: string;
+  autoAnalyze?: boolean;
+}
+
+export interface AddCompanyDeps {
+  enrichWebsite?: (url: string) => Promise<WebsiteEnrichment>;
+  fetchHtml?: typeof safeFetchHtml;
+  enqueue?: typeof enqueueJob;
+  db?: Db;
+}
+
+/** Nombre probable del negocio a partir de su home: og:site_name, si no el <title> sin el eslogan. */
+export function nameFromHtml(html: string): string | undefined {
+  const $ = load(html);
+  const clean = (v: string | undefined) => v?.replace(/\s+/g, " ").trim();
+  const site = clean($('meta[property="og:site_name"]').attr("content"));
+  if (site && site.length >= 2) return site.slice(0, 120);
+  const title = clean($("title").first().text());
+  if (!title) return undefined;
+  const first = title.split(/\s+[|\-–—·»:]\s+/)[0]?.trim();
+  return (first && first.length >= 2 ? first : title).slice(0, 120);
+}
+
+/**
+ * Añade a mano un negocio que ya conoces a partir de su web (útil cuando las fuentes automáticas no lo listan).
+ * Los datos salen solo de su propia web (procedencia «manual»/«website»); no se inventa nada. Crea una búsqueda
+ * «manual» para que la empresa quede registrada igual que las descubiertas y, si procede, encola su análisis.
+ */
+export async function addCompanyByWebsite(input: AddCompanyInput, deps: AddCompanyDeps = {}): Promise<{ companyId: number; created: boolean }> {
+  const url = normalizeWebsiteUrl(input.website);
+  if (!url) throw new Error("La dirección web no es válida");
+  const db = deps.db ?? getDb();
+  const fetchHtml = deps.fetchHtml ?? safeFetchHtml;
+  const page = await fetchHtml(url.toString());
+  if (!page.ok) throw new Error(`No se pudo leer ${url.hostname}: ${page.message}`);
+  const name = input.name?.trim() || nameFromHtml(page.html);
+  if (!name) throw new Error("No se pudo deducir el nombre del negocio: indícalo manualmente");
+  const website = page.finalUrl;
+  const enrichWebsite = deps.enrichWebsite ?? ((u: string) => enrichFromWebsite(u));
+  let enrichment: WebsiteEnrichment | undefined;
+  try {
+    enrichment = await enrichWebsite(website);
+  } catch {
+    enrichment = undefined;
+  }
+
+  const fetchedAt = new Date();
+  const location = input.location.trim();
+  const business: DiscoveredBusiness = {
+    provider: "manual",
+    externalId: websiteDomain(website) ?? new URL(website).hostname,
+    sourceUrl: website,
+    name,
+    city: location.split(",")[0]?.trim() || undefined,
+    country: location.includes(",") ? location.split(",").at(-1)?.trim() : undefined,
+    website,
+    fetchedAt,
+  };
+  const merged = mergeBusinesses([business]);
+  const search = db
+    .insert(tables.searches)
+    .values({
+      niche: input.niche.trim(),
+      location,
+      targetCount: 1,
+      providers: ["manual"],
+      autoAnalyze: input.autoAnalyze ?? true,
+      status: "completed",
+      foundCount: 1,
+      startedAt: fetchedAt,
+      finishedAt: fetchedAt,
+      providerResults: { manual: { status: "ok", found: 1 } },
+    })
+    .returning()
+    .get();
+  const enrichments = new Map<MergedBusiness, WebsiteEnrichment>();
+  if (enrichment) enrichments.set(merged[0]!, enrichment);
+  const { companyIds, created } = persist(db, search.id, search, merged, enrichments);
+  const companyId = companyIds[0]!;
+  logActivity({
+    type: "search.completed",
+    message: `Empresa añadida manualmente: ${name} (${new URL(website).hostname})`,
+    searchId: search.id,
+    companyId,
+  });
+  if (search.autoAnalyze) {
+    const company = db.select({ status: tables.companies.analysisStatus }).from(tables.companies).where(eq(tables.companies.id, companyId)).get();
+    if (company?.status === "pending") (deps.enqueue ?? enqueueJob)({ type: "company.analyze", payload: { companyId }, companyId, searchId: search.id });
+  }
+  return { companyId, created: created > 0 };
 }

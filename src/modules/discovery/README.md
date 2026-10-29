@@ -30,6 +30,12 @@ Un proveedor sin configurar o que falla **no inventa datos**: queda en `searches
   429/5xx/red, `Retry-After`, timeouts, Overpass con instancia alternativa.
 - **Nichos** (`lib/niche.ts`): tabla es/en → etiquetas OSM. Añadir un nicho = añadir una regla.
 
+## Añadir una empresa por su web
+
+`addCompanyByWebsite()` (formulario en *Nueva búsqueda*): lee la home del negocio, deduce el nombre (`og:site_name` o `<title>`, editable) y
+guarda la empresa con procedencia `manual` + `website` y estado CRM `new`. Existe porque la cobertura de OpenStreetMap es muy desigual
+(verificado: Salta capital tiene ~3 dentistas etiquetados) y no todas las ciudades tendrán Google Places configurado.
+
 ## Probar contra las fuentes reales
 
 ```bash

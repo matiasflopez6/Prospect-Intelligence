@@ -28,7 +28,7 @@ describe("getLlmInfo", () => {
   it("usa Gemini si solo hay clave de Gemini", () => {
     process.env.GEMINI_API_KEY = "g";
     resetEnvCache();
-    expect(getLlmInfo()).toEqual({ provider: "gemini", model: "gemini-2.5-flash" });
+    expect(getLlmInfo()).toEqual({ provider: "gemini", model: "gemini-flash-latest" });
   });
   it("con ambas prefiere Anthropic salvo LLM_PROVIDER", () => {
     process.env.GEMINI_API_KEY = "g";
@@ -57,7 +57,7 @@ describe("geminiComplete", () => {
     const out = await geminiComplete({ system: "S", prompt: "P", json: true, maxTokens: 1000 }, fetchImpl);
     expect(out).toBe("hola");
     const [url, init] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]!;
-    expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
+    expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent");
     expect(url).not.toContain("secret-key");
     expect((init.headers as Record<string, string>)["x-goog-api-key"]).toBe("secret-key");
     const body = JSON.parse(init.body as string);
@@ -74,6 +74,17 @@ describe("geminiComplete", () => {
     const f2 = vi.fn(async () => new Response(JSON.stringify({ error: { message: "API key not valid" } }), { status: 400 }));
     await expect(geminiComplete({ system: "s", prompt: "p" }, f2 as unknown as typeof fetch)).rejects.toThrow(/API key not valid/);
     expect(f2).toHaveBeenCalledTimes(1);
+  });
+
+  it("si el modelo configurado ya no existe (404) pasa al siguiente sin reintentar", async () => {
+    process.env.GEMINI_API_KEY = "k";
+    process.env.GEMINI_MODEL = "gemini-retirado";
+    resetEnvCache();
+    const f = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: "no longer available" } }), { status: 404 })).mockResolvedValueOnce(ok("listo"));
+    expect(await geminiComplete({ system: "s", prompt: "p" }, f as unknown as typeof fetch)).toBe("listo");
+    const urls = (f as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => c[0]);
+    expect(urls[0]).toContain("gemini-retirado");
+    expect(urls[1]).toContain("gemini-flash-latest");
   });
 
   it("falla con claridad si la respuesta se corta o está bloqueada", async () => {

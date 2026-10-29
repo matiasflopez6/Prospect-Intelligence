@@ -21,3 +21,11 @@ export function formatRelative(d: Date | number | null | undefined): string {
   if (abs < 86400) return rtf.format(Math.round(diff / 3600), "hour");
   return rtf.format(Math.round(diff / 86400), "day");
 }
+
+const BUSINESS_STATUS: Record<string, string> = {
+  OPERATIONAL: "En funcionamiento",
+  CLOSED_TEMPORARILY: "Cerrado temporalmente",
+  CLOSED_PERMANENTLY: "Cerrado definitivamente",
+};
+/** Estado de actividad que informa Google Places, en español (desconocido → tal cual). */
+export const formatBusinessStatus = (s: string | null | undefined) => (s ? BUSINESS_STATUS[s] ?? s : null);

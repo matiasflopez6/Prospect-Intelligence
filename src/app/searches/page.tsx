@@ -22,7 +22,7 @@ export default function SearchesPage() {
           rowHref={(s) => `/searches/${s.id}`}
           empty={<EmptyState title="Aún no hay búsquedas" description="Cuando lances una búsqueda aparecerá aquí con su progreso y resultados." />}
           columns={[
-            { key: "niche", header: "Nicho", cell: (s) => s.niche },
+            { key: "niche", header: "Nicho", cell: (s) => (s.providers?.length === 1 && s.providers[0] === "manual" ? <>{s.niche} <Badge>Alta manual</Badge></> : s.niche) },
             { key: "location", header: "Ubicación", cell: (s) => <span className="text-ink-2">{s.location}</span> },
             { key: "found", header: "Empresas", align: "right", cell: (s) => <span className="tnum">{formatNumber(s.foundCount)} / {formatNumber(s.targetCount)}</span> },
             { key: "status", header: "Estado", cell: (s) => <Badge tone={SEARCH_STATUS[s.status]?.tone}>{SEARCH_STATUS[s.status]?.label ?? s.status}</Badge> },
