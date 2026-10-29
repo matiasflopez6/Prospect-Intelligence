@@ -1,11 +1,11 @@
 import { SERVICES, serviceLabel } from "@/domain";
 import { Badge, DescriptionList, EmptyState, ImpactBadge, Panel } from "@/components/ui";
-import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import { formatBusinessStatus, formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import type { Company } from "@/modules/companies/service";
 import type { ProfileData } from "../queries";
 
 const ext = "text-accent hover:underline break-all";
-const PROVIDER_LABELS: Record<string, string> = { "google-places": "Google Places", openstreetmap: "OpenStreetMap", website: "Sitio web del negocio" };
+const PROVIDER_LABELS: Record<string, string> = { "google-places": "Google Places", openstreetmap: "OpenStreetMap", website: "Sitio web del negocio", manual: "Alta manual" };
 
 function formatHours(h: Company["openingHours"]): string[] {
   if (!h) return [];
@@ -27,7 +27,7 @@ export function OverviewSection({ company, data }: { company: Company; data: Pro
             { label: "Nicho de búsqueda", value: company.niche },
             { label: "Dirección", value: company.address },
             { label: "Zona", value: where || company.location },
-            { label: "Estado", value: company.businessStatus },
+            { label: "Estado", value: formatBusinessStatus(company.businessStatus) },
           ]}
         />
         <DescriptionList

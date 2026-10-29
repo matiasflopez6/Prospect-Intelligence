@@ -185,7 +185,8 @@ export function buildFacts(input: FactsInput): Facts {
     contactForm = inquiryForms.length > 0;
     newsletter = forms.some((f) => f.isNewsletter);
     longForm = inquiryForms.some((f) => (f.fieldCount ?? 0) >= 7 || (f.hasRequiredPhone === true && (f.fieldCount ?? 0) >= 5));
-    const ownForms = inquiryForms.filter((f) => !f.vendor);
+    // Solo se juzgan los formularios cuyos campos se leyeron: los que dibuja JavaScript (sin campos en el HTML) no.
+    const ownForms = inquiryForms.filter((f) => !f.vendor && f.fieldCount !== undefined);
     genericForm = ownForms.length > 0 && ownForms.every((f) => !f.hasChoiceField);
     ctaCount = signals.ctas?.length ?? 0;
     tracking = (signals.tech?.analytics.length ?? 0) + (signals.tech?.pixels.length ?? 0) > 0;
